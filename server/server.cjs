@@ -1,12 +1,19 @@
+require('dotenv').config();
+
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // for large base64 files
 
-const uri = 'mongodb+srv://mohamedfardeen1234_db_user:kWWlBhn2ATPIMdjH@cluster0.vvuz2r9.mongodb.net/';
+// Serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, '../dist')));
+
+// API routes
+const uri = process.env.MONGODB_URI;
 const client = new MongoClient(uri);
 
 async function connectDB() {
@@ -102,5 +109,10 @@ app.delete('/api/files/:id', async (req, res) => {
   }
 });
 
-const PORT = 3001;
+// Catch all handler: send back React's index.html file for any non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
