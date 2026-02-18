@@ -1,0 +1,22 @@
+services:
+  # Web Service
+  - type: web
+    name: lab-manager
+    env: node
+    plan: free
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: NODE_ENV
+        value: production
+    buildFilter:
+      paths:
+        - src/**
+        - server/**
+        - package.json
+        - package-lock.json
+        - vite.config.ts
+        - tsconfig.json
+    autoDeploy: true
