@@ -1,9 +1,17 @@
 :root {
-  --bg-color: #1a1a1a;
+  --bg-color: #0f0f0f;
   --text-color: #ffffff;
-  --accent-color: #646cff;
-  --secondary-bg: #333;
-  --border-color: #555;
+  --accent-color: #6366f1;
+  --accent-hover: #4f46e5;
+  --secondary-bg: #1a1a1a;
+  --tertiary-bg: #262626;
+  --border-color: #374151;
+  --success-color: #10b981;
+  --danger-color: #ef4444;
+  --warning-color: #f59e0b;
+  --text-secondary: #9ca3af;
+  --shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 * {
@@ -19,18 +27,134 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: var(--bg-color);
   color: var(--text-color);
+  line-height: 1.6;
 }
 
-button {
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--secondary-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Button Styles */
+.btn {
   background: var(--accent-color);
   color: var(--text-color);
   border: none;
-  padding: 8px 12px;
-  border-radius: 4px;
+  padding: 10px 16px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-button:hover {
-  background: #535bf2;
+.btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: var(--tertiary-bg);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background: var(--border-color);
+}
+
+.btn-danger {
+  background: var(--danger-color);
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
+.btn-success {
+  background: var(--success-color);
+}
+
+.btn-success:hover {
+  background: #059669;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* Card Styles */
+.card {
+  background: var(--secondary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--accent-color);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+}
+
+/* Input Styles */
+input[type="file"] {
+  background: var(--tertiary-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+input[type="file"]:hover {
+  border-color: var(--accent-color);
+}
+
+/* Loading Animation */
+.loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--border-color);
+  border-radius: 50%;
+  border-top-color: var(--accent-color);
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Fade In Animation */
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }

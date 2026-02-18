@@ -206,81 +206,467 @@ function App() {
   const canUpload = selectedFolder && !folders.some(f => f.parentId === selectedFolder);
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-color)', color: 'var(--text-color)' }}>
-      <header style={{ textAlign: 'center', padding: '20px', background: 'var(--secondary-bg)', fontSize: '24px', fontWeight: 'bold' }}>
-        Lab Works
+    <div className="fade-in" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-color)', color: 'var(--text-color)' }}>
+      <header style={{ 
+        textAlign: 'center', 
+        padding: '24px 20px', 
+        background: 'linear-gradient(135deg, var(--secondary-bg) 0%, var(--tertiary-bg) 100%)', 
+        fontSize: '28px', 
+        fontWeight: 'bold',
+        borderBottom: '1px solid var(--border-color)',
+        boxShadow: 'var(--shadow-sm)'
+      }}>
+        Lab Works Manager
       </header>
       {loading ? (
-        <div style={{ textAlign: 'center', marginTop: '100px', fontSize: '18px' }}>Loading...</div>
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          marginTop: '100px', 
+          fontSize: '18px' 
+        }}>
+          <div className="loading"></div>
+          <span style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>Loading your lab workspace...</span>
+        </div>
       ) : (
         <div style={{ display: 'flex', flex: 1 }}>
-          <div style={{ width: '250px', background: 'var(--secondary-bg)', padding: '10px', overflowY: 'auto' }} onContextMenu={(e) => { e.preventDefault(); setContextMenu({x: e.clientX, y: e.clientY}); }}>
-            <h3>Users</h3>
-            {users.map(user => (
-              <div key={user._id} style={{ padding: '5px', cursor: 'pointer', background: selectedUser === user._id ? 'var(--accent-color)' : 'transparent' }} onClick={() => { setSelectedUser(user._id); setSelectedFolder(null); }}>
-                {user.name}
-              </div>
-            ))}
+          <div style={{ 
+            width: '280px', 
+            background: 'var(--secondary-bg)', 
+            padding: '20px', 
+            overflowY: 'auto',
+            borderRight: '1px solid var(--border-color)'
+          }} 
+          onContextMenu={(e) => { e.preventDefault(); setContextMenu({x: e.clientX, y: e.clientY}); }}>
+            <h3 style={{ 
+              margin: '0 0 16px 0', 
+              fontSize: '18px', 
+              fontWeight: '600',
+              color: 'var(--text-color)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              Users
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {users.map(user => (
+                <div 
+                  key={user._id} 
+                  className="card"
+                  style={{ 
+                    padding: '12px 16px',
+                    cursor: 'pointer', 
+                    background: selectedUser === user._id ? 'var(--accent-color)' : 'var(--secondary-bg)',
+                    border: selectedUser === user._id ? '2px solid var(--accent-color)' : '1px solid var(--border-color)',
+                    transition: 'all 0.2s ease'
+                  }} 
+                  onClick={() => { setSelectedUser(user._id); setSelectedFolder(null); }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ 
+                      width: '32px', 
+                      height: '32px', 
+                      borderRadius: '50%', 
+                      background: selectedUser === user._id ? 'var(--text-color)' : 'var(--accent-color)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      color: selectedUser === user._id ? 'var(--accent-color)' : 'var(--text-color)'
+                    }}>
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: '500' }}>{user.name}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Click to explore</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
             {contextMenu && (
-              <div style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x, background: 'var(--secondary-bg)', border: '1px solid var(--border-color)', padding: '5px', zIndex: 1000 }} onClick={() => setContextMenu(null)}>
-                <div onClick={addUser} style={{ cursor: 'pointer' }}>Add User</div>
+              <div 
+                className="card fade-in"
+                style={{ 
+                  position: 'fixed', 
+                  top: contextMenu.y, 
+                  left: contextMenu.x, 
+                  background: 'var(--tertiary-bg)', 
+                  border: '1px solid var(--accent-color)',
+                  padding: '8px 0',
+                  zIndex: 1000,
+                  minWidth: '150px',
+                  borderRadius: '8px',
+                  boxShadow: 'var(--shadow)'
+                }} 
+                onClick={() => setContextMenu(null)}
+              >
+                <div 
+                  onClick={addUser} 
+                  style={{ 
+                    cursor: 'pointer',
+                    padding: '10px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'background 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-color)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  Add User
+                </div>
               </div>
             )}
           </div>
-          <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+          <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
             {selectedUser ? (
               <>
                 {selectedFolder && (
-                  <button onClick={() => setSelectedFolder(null)} style={{ marginBottom: '10px' }}>Back</button>
+                  <div style={{ marginBottom: '20px' }}>
+                    <button 
+                      className="btn btn-secondary"
+                      onClick={() => setSelectedFolder(null)}
+                    >
+                      ← Back to Folders
+                    </button>
+                  </div>
                 )}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
-                  {currentFolders.map(folder => (
-                    <div key={folder._id} style={{ border: '1px solid var(--border-color)', padding: '15px', background: 'var(--secondary-bg)', cursor: 'pointer', borderRadius: '8px' }} onClick={() => handleFolderClick(folder._id)}>
-                      <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{folder.name}</div>
-                      <div style={{ fontSize: '12px', color: '#ccc' }}>{new Date(folder.created).toLocaleDateString()}</div>
-                    </div>
-                  ))}
-                  {canUpload && currentFiles.map(file => (
-                    <div key={file._id} style={{ border: '1px solid var(--border-color)', padding: '10px', background: 'var(--secondary-bg)', borderRadius: '8px' }}>
-                      {file.type.startsWith('image/') ? (
-                        <img src={`data:${file.type};base64,${file.data}`} alt={file.name} style={{ width: '100%', height: '120px', objectFit: 'cover', cursor: 'pointer', borderRadius: '4px' }} onClick={() => setLightbox(file)} />
-                      ) : (
-                        <div style={{ height: '120px', background: '#444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '48px', borderRadius: '4px' }}>
-                          📄
+                
+                {currentFolders.length > 0 && (
+                  <div style={{ marginBottom: '32px' }}>
+                    <h2 style={{ 
+                      margin: '0 0 20px 0', 
+                      fontSize: '20px', 
+                      fontWeight: '600',
+                      color: 'var(--text-color)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      📁 {selectedFolder ? 'Subfolders' : 'Lab Categories'}
+                    </h2>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
+                      {currentFolders.map(folder => (
+                        <div 
+                          key={folder._id} 
+                          className="card"
+                          style={{ 
+                            cursor: 'pointer',
+                            position: 'relative',
+                            overflow: 'hidden'
+                          }} 
+                          onClick={() => handleFolderClick(folder._id)}
+                        >
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '12px',
+                            marginBottom: '8px'
+                          }}>
+                            <div style={{ 
+                              fontSize: '32px',
+                              filter: 'hue-rotate(200deg)'
+                            }}>
+                              📂
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ 
+                                fontSize: '16px', 
+                                fontWeight: '600',
+                                marginBottom: '4px'
+                              }}>
+                                {folder.name}
+                              </div>
+                              <div style={{ 
+                                fontSize: '12px', 
+                                color: 'var(--text-secondary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                📅 {new Date(folder.created).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '8px',
+                            right: '8px',
+                            fontSize: '20px',
+                            opacity: 0.5
+                          }}>
+                            →
+                          </div>
                         </div>
-                      )}
-                      <div style={{ fontSize: '14px', marginTop: '10px' }}>{file.name}</div>
-                      <div style={{ fontSize: '12px', color: '#ccc' }}>{(file.size / 1024).toFixed(1)} KB</div>
-                      <div style={{ fontSize: '12px', color: '#ccc' }}>{new Date(file.added).toLocaleString()}</div>
-                      <div style={{ marginTop: '10px' }}>
-                        <button onClick={() => downloadFile(file)} style={{ marginRight: '5px' }}>Download</button>
-                        <button onClick={() => deleteFile(file._id)}>Delete</button>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
+                {canUpload && currentFiles.length > 0 && (
+                  <div>
+                    <h2 style={{ 
+                      margin: '0 0 20px 0', 
+                      fontSize: '20px', 
+                      fontWeight: '600',
+                      color: 'var(--text-color)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      📄 Files ({currentFiles.length})
+                    </h2>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+                      {currentFiles.map(file => (
+                        <div key={file._id} className="card" style={{ position: 'relative' }}>
+                          {file.type.startsWith('image/') ? (
+                            <div style={{ position: 'relative' }}>
+                              <img 
+                                src={`data:${file.type};base64,${file.data}`} 
+                                alt={file.name} 
+                                style={{ 
+                                  width: '100%', 
+                                  height: '160px', 
+                                  objectFit: 'cover', 
+                                  cursor: 'pointer', 
+                                  borderRadius: '8px 8px 0 0',
+                                  transition: 'transform 0.2s ease'
+                                }} 
+                                onClick={() => setLightbox(file)}
+                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                              />
+                              <div style={{
+                                position: 'absolute',
+                                top: '8px',
+                                right: '8px',
+                                background: 'rgba(0,0,0,0.7)',
+                                color: 'white',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '10px'
+                              }}>
+                                🖼️ Image
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ 
+                              height: '160px', 
+                              background: 'linear-gradient(135deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%)', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              fontSize: '48px', 
+                              borderRadius: '8px 8px 0 0',
+                              position: 'relative'
+                            }}>
+                              📄
+                              <div style={{
+                                position: 'absolute',
+                                top: '8px',
+                                right: '8px',
+                                background: 'rgba(0,0,0,0.7)',
+                                color: 'white',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '10px'
+                              }}>
+                                📎 Document
+                              </div>
+                            </div>
+                          )}
+                          <div style={{ padding: '16px' }}>
+                            <div style={{ 
+                              fontSize: '14px', 
+                              fontWeight: '500',
+                              marginBottom: '8px',
+                              wordBreak: 'break-word'
+                            }}>
+                              {file.name}
+                            </div>
+                            <div style={{ 
+                              fontSize: '12px', 
+                              color: 'var(--text-secondary)',
+                              marginBottom: '12px'
+                            }}>
+                              <div>📊 {(file.size / 1024).toFixed(1)} KB</div>
+                              <div>🕒 {new Date(file.added).toLocaleString()}</div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button 
+                                className="btn btn-sm btn-secondary"
+                                onClick={() => downloadFile(file)}
+                              >
+                                ⬇️ Download
+                              </button>
+                              <button 
+                                className="btn btn-sm btn-danger"
+                                onClick={() => deleteFile(file._id)}
+                              >
+                                🗑️ Delete
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {canUpload && (
-                  <div
-                    style={{ border: '2px dashed var(--accent-color)', padding: '40px', textAlign: 'center', marginTop: '20px', borderRadius: '8px', background: 'rgba(100, 108, 255, 0.1)' }}
-                    onDragOver={(e) => e.preventDefault()}
+                  <div 
+                    className="card"
+                    style={{ 
+                      border: '2px dashed var(--accent-color)', 
+                      padding: '48px', 
+                      textAlign: 'center', 
+                      marginTop: '32px', 
+                      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(99, 102, 241, 0.1) 100%)',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.style.borderColor = 'var(--success-color)';
+                      e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
+                    }}
+                    onDragLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--accent-color)';
+                      e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(99, 102, 241, 0.1) 100%)';
+                    }}
                     onDrop={(e) => {
                       e.preventDefault();
+                      e.currentTarget.style.borderColor = 'var(--accent-color)';
+                      e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(99, 102, 241, 0.1) 100%)';
                       handleFiles(e.dataTransfer.files);
                     }}
                   >
-                    Drop files here or <input type="file" multiple onChange={(e) => handleFiles(e.target.files!)} style={{ marginLeft: '10px' }} />
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📤</div>
+                    <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
+                      Drop files here to upload
+                    </div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                      or click to browse
+                    </div>
+                    <input 
+                      type="file" 
+                      multiple 
+                      onChange={(e) => handleFiles(e.target.files!)} 
+                      style={{ 
+                        display: 'none',
+                        id: 'file-input'
+                      }} 
+                    />
+                    <label 
+                      htmlFor="file-input"
+                      className="btn"
+                      style={{ cursor: 'pointer' }}
+                    >
+                      📁 Choose Files
+                    </label>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '12px' }}>
+                      Maximum file size: 4MB
+                    </div>
                   </div>
                 )}
               </>
             ) : (
-              <div style={{ textAlign: 'center', marginTop: '100px', fontSize: '18px' }}>Select a user to view their folders</div>
+              <div style={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginTop: '100px', 
+                fontSize: '18px',
+                color: 'var(--text-secondary)'
+              }}>
+                <div style={{ fontSize: '64px', marginBottom: '16px' }}>👤</div>
+                <div style={{ fontSize: '20px', fontWeight: '500', marginBottom: '8px' }}>No User Selected</div>
+                <div style={{ fontSize: '14px' }}>Select a user from the sidebar to view their lab folders</div>
+              </div>
             )}
           </div>
         </div>
       )}
       {lightbox && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setLightbox(null)}>
-          <img src={`data:${lightbox.type};base64,${lightbox.data}`} alt={lightbox.name} style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: '8px' }} />
+        <div 
+          className="fade-in"
+          style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            width: '100%', 
+            height: '100%', 
+            background: 'rgba(0,0,0,0.95)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            zIndex: 1000,
+            cursor: 'pointer'
+          }} 
+          onClick={() => setLightbox(null)}
+        >
+          <div style={{ 
+            position: 'relative',
+            maxWidth: '90%', 
+            maxHeight: '90%', 
+            borderRadius: '12px',
+            overflow: 'hidden',
+            boxShadow: 'var(--shadow)'
+          }}>
+            <img 
+              src={`data:${lightbox.type};base64,${lightbox.data}`} 
+              alt={lightbox.name} 
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                objectFit: 'contain',
+                display: 'block'
+              }} 
+              onClick={(e) => e.stopPropagation()}
+            />
+            <div style={{
+              position: 'absolute',
+              bottom: '0',
+              left: '0',
+              right: '0',
+              background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)',
+              color: 'white',
+              padding: '20px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px' }}>
+                {lightbox.name}
+              </div>
+              <div style={{ fontSize: '12px', opacity: 0.8 }}>
+                {(lightbox.size / 1024).toFixed(1)} KB • {new Date(lightbox.added).toLocaleString()}
+              </div>
+            </div>
+            <button
+              className="btn btn-danger"
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                borderRadius: '50%',
+                width: '40px',
+                height: '40px',
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightbox(null);
+              }}
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
       {contextMenu && <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 999 }} onClick={() => setContextMenu(null)}></div>}
