@@ -40,6 +40,7 @@ function App() {
   const [chatHistory, setChatHistory] = useState<{ role: string, content: string }[]>([]);
   const [chatMessage, setChatMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('llama-3.3-70b-versatile');
 
   useEffect(() => {
     loadUsers();
@@ -349,6 +350,7 @@ function App() {
           message: chatMessage,
           userId: selectedUser,
           folderId: selectedFolder,
+          model: selectedModel,
           history: chatHistory
         })
       });
@@ -839,7 +841,26 @@ function App() {
               background: 'rgba(255,255,255,0.03)'
             }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '20px' }}>🤖</span> Lab-Bot Assistant
+                <span style={{ fontSize: '20px' }}>🤖</span> Lab-Bot
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '4px',
+                    color: 'var(--text-secondary)',
+                    fontSize: '10px',
+                    padding: '2px 4px',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    marginLeft: '8px'
+                  }}
+                >
+                  <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+                  <option value="llama-3.2-11b-vision-preview">Llama 3.2 Vision</option>
+                  <option value="llama-3.1-8b-instant">Llama 3.1 8B</option>
+                </select>
               </span>
               {chatHistory.length > 0 && (
                 <button

@@ -142,7 +142,7 @@ app.delete('/api/files/:id', async (req, res) => {
 // AI Chat
 app.post('/api/ai/chat', async (req, res) => {
   try {
-    const { message, userId, folderId, history } = req.body;
+    const { message, userId, folderId, model: requestedModel, history } = req.body;
 
     const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
     const folders = await db.collection('folders').find({ userId }).toArray();
@@ -198,12 +198,14 @@ app.post('/api/ai/chat', async (req, res) => {
     2. Use the provided text contents from files to answer complex technical questions.
     3. Be professional and concise.`;
 
-    const model = imagesForVision.length > 0 ? 'llama-3.2-11b-vision-preview' : 'llama-3.3-70b-versatile';
+    const isVisionModel = requestedModel && requestedModel.includes('vision');
+    const model = requestedModel || (imagesForVision.length > 0 ? 'llama-3.2-11b-vision-preview' : 'llama-3.3-70b-versatile');
 
     const userContent = [
       { type: "text", text: message }
     ];
-    if (imagesForVision.length > 0) {
+    // Only send images if we are using a vision model
+    if (imagesForVision.length > 0 && (isVisionModel || !requestedModel)) {
       userContent.push(...imagesForVision);
     }
 
