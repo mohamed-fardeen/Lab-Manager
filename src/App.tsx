@@ -128,16 +128,24 @@ function App() {
   async function deleteUser(userId: string) {
     if (confirm('Delete user and all their data?')) {
       try {
-        // First delete all folders and files for this user
-        const userFolders = await db.collection('folders').find({ userId }).toArray();
+        // Get all folders for this user
+        const foldersResponse = await fetch(`/api/folders/${userId}`);
+        const userFolders = await foldersResponse.json();
+        
+        // Delete all files and folders for this user
         for (const folder of userFolders) {
           // Delete all files in this folder
-          await db.collection('files').deleteMany({ folderId: folder._id });
+          const filesResponse = await fetch(`/api/files/${folder._id}`);
+          const files = await filesResponse.json();
+          for (const file of files) {
+            await fetch(`/api/files/${file._id}`, { method: 'DELETE' });
+          }
           // Delete the folder
-          await db.collection('folders').deleteOne({ _id: folder._id });
+          await fetch(`/api/folders/${folder._id}`, { method: 'DELETE' });
         }
+        
         // Delete the user
-        await db.collection('users').deleteOne({ _id: userId });
+        await fetch(`/api/users/${userId}`, { method: 'DELETE' });
         
         // Refresh UI
         if (selectedUser === userId) {
@@ -155,7 +163,11 @@ function App() {
     const newName = prompt('Enter new name:', currentName);
     if (newName && newName !== currentName) {
       try {
-        await db.collection('users').updateOne({ _id: userId }, { $set: { name: newName } });
+        await fetch(`/api/users/${userId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newName })
+        });
         setUsers(users.map(user => 
           user._id === userId ? { ...user, name: newName } : user
         ));
@@ -343,12 +355,6 @@ function App() {
                     const rect = (e.target as HTMLElement).getBoundingClientRect();
                     setContextMenu({x: e.clientX, y: e.clientY, userId: user._id});
                   }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const rect = (e.target as HTMLElement).getBoundingClientRect();
-                    setContextMenu({x: e.clientX, y: e.clientY, userId: user._id});
-                  }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{ 
@@ -446,7 +452,7 @@ function App() {
               </div>
             )}
           </div>
-          <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
+          <div style={{ flex: 1, padding: '24px', overflow: 'hidden' }}>
             {selectedUser ? (
               <>
                 {selectedFolder && (

@@ -51,6 +51,30 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
+app.put('/api/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    const result = await db.collection('users').updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { name } }
+    );
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.collection('users').deleteOne({ _id: new ObjectId(id) });
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Folders
 app.get('/api/folders/:userId', async (req, res) => {
   try {
