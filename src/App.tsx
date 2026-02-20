@@ -935,17 +935,19 @@ function App() {
                       dangerouslySetInnerHTML={{
                         __html: DOMPurify.sanitize(marked.parse(msg.content, {
                           renderer: Object.assign(new marked.Renderer(), {
-                            code(code: string, language: string) {
+                            code(token: any, language?: string) {
+                              const code = typeof token === 'object' ? token.text : token;
+                              const lang = typeof token === 'object' ? token.lang : language;
                               return `
                                 <div class="code-block-container">
                                   <div class="code-block-header">
-                                    <span>${language || 'code'}</span>
+                                    <span>${lang || 'code'}</span>
                                     <button class="copy-code-btn" onclick="window.copyCode(this)">
                                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 4v12a2 2 0 002 2h8a2 2 0 002-2V7.242a2 2 0 00-.602-1.43L15.83 2.21A2 2 0 0014.4 1.6H10a2 2 0 00-2 2z"></path><path d="M16 20v2a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h2"></path></svg>
                                       <span>Copy</span>
                                     </button>
                                   </div>
-                                  <pre><code class="language-${language}">${code}</code></pre>
+                                  <pre><code class="language-${lang}">${code}</code></pre>
                                 </div>
                               `;
                             }
