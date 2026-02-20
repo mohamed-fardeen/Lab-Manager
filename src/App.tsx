@@ -31,6 +31,7 @@ function App() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<FileItem | null>(null);
   const [contextMenu, setContextMenu] = useState<{x: number, y: number, userId?: string} | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -541,13 +542,66 @@ function App() {
                       color: 'var(--text-color)',
                       display: 'flex',
                       alignItems: 'center',
+                      justifyContent: 'space-between',
                       gap: '8px'
                     }}>
-                      📄 Files ({currentFiles.length})
+                      <span>📄 Files ({currentFiles.length})</span>
+                      {selectedFiles.length > 0 && (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+                            {selectedFiles.length} selected
+                          </span>
+                          <button 
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => {
+                              selectedFiles.forEach(fileId => {
+                                const file = currentFiles.find(f => f._id === fileId);
+                                if (file) downloadFile(file);
+                              });
+                            }}
+                          >
+                            ⬇️ Download All
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-danger"
+                            onClick={() => {
+                              if (confirm(`Delete ${selectedFiles.length} selected files?`)) {
+                                selectedFiles.forEach(fileId => {
+                                  deleteFile(fileId);
+                                });
+                                setSelectedFiles([]);
+                              }
+                            }}
+                          >
+                            🗑️ Delete All
+                          </button>
+                        </div>
+                      )}
                     </h2>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
                       {currentFiles.map(file => (
                         <div key={file._id} className="card" style={{ position: 'relative' }}>
+                          <div 
+                            style={{
+                              position: 'absolute',
+                              top: '8px',
+                              left: '8px',
+                              zIndex: 10
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedFiles.includes(file._id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedFiles([...selectedFiles, file._id]);
+                                } else {
+                                  setSelectedFiles(selectedFiles.filter(id => id !== file._id));
+                                }
+                              }}
+                              style={{ marginRight: '8px' }}
+                            />
+                          </div>
                           {file.type.startsWith('image/') ? (
                             <div style={{ position: 'relative' }}>
                               <img 
@@ -559,7 +613,8 @@ function App() {
                                   objectFit: 'cover', 
                                   cursor: 'pointer', 
                                   borderRadius: '8px 8px 0 0',
-                                  transition: 'transform 0.2s ease'
+                                  transition: 'transform 0.2s ease',
+                                  opacity: selectedFiles.includes(file._id) ? 0.7 : 1
                                 }} 
                                 onClick={() => setLightbox(file)}
                                 onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
@@ -587,7 +642,8 @@ function App() {
                               justifyContent: 'center', 
                               fontSize: '48px', 
                               borderRadius: '8px 8px 0 0',
-                              position: 'relative'
+                              position: 'relative',
+                              opacity: selectedFiles.includes(file._id) ? 0.7 : 1
                             }}>
                               📄
                               <div style={{
