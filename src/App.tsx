@@ -226,7 +226,8 @@ function App() {
 
   function getCurrentFiles() {
     if (!selectedFolder) return [];
-    return files;
+    // Ensure we only show files belonging to the active folder
+    return files.filter(f => f.folderId === selectedFolder);
   }
 
   function handleFolderClick(folderId: string) {
@@ -415,9 +416,11 @@ function App() {
       }
 
       if (createdAny) {
-        // Refresh folders and files
-        loadFolders(selectedUser);
-        if (selectedFolder) loadFiles(selectedFolder);
+        // Delay refresh slightly to ensure DB consistency and prevent flickering
+        setTimeout(() => {
+          if (selectedUser) loadFolders(selectedUser);
+          if (selectedFolder) loadFiles(selectedFolder);
+        }, 500);
       }
     } catch (error) {
       console.error('Chat Error:', error);
