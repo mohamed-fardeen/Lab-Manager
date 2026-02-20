@@ -343,6 +343,12 @@ function App() {
                     const rect = (e.target as HTMLElement).getBoundingClientRect();
                     setContextMenu({x: e.clientX, y: e.clientY, userId: user._id});
                   }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rect = (e.target as HTMLElement).getBoundingClientRect();
+                    setContextMenu({x: e.clientX, y: e.clientY, userId: user._id});
+                  }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{ 
@@ -434,7 +440,7 @@ function App() {
                     onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-color)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    ➕ Add User
+                    Add User
                   </div>
                 )}
               </div>
