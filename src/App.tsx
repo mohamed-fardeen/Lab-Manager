@@ -383,12 +383,13 @@ function App() {
 
       setChatHistory(prev => [...prev, { role: 'assistant', content: data.message }]);
 
-      // Check for file creation tags in the response
-      const fileCreationMatch = data.message.matchAll(/<create_file filename="(.*?)" folder="(.*?)">([\s\S]*?)<\/create_file>/g);
+      // Check for file creation tags in the response - support both single and double quotes
+      const fileCreationMatch = Array.from(data.message.matchAll(/<create_file filename=["'](.*?)["'] folder=["'](.*?)["']>([\s\S]*?)<\/create_file>/g) as Iterable<RegExpMatchArray>);
       let createdAny = false;
 
       for (const match of fileCreationMatch) {
         const [_, filename, folderName, content] = match;
+        console.log(`Processing AI file request: ${filename} in ${folderName}`);
         try {
           await fetch('/api/files/ai-create', {
             method: 'POST',
@@ -402,6 +403,12 @@ function App() {
           });
           createdAny = true;
           console.log(`AI Auto-created file: ${filename} in ${folderName}`);
+
+          // Add a temporary local message to confirm creation
+          setChatHistory(prev => [...prev, {
+            role: 'assistant',
+            content: `📂 **Auto-saved**: \`${filename}\` has been created in the \`${folderName}\` folder.`
+          }]);
         } catch (err) {
           console.error('Failed to auto-create file:', err);
         }
