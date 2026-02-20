@@ -417,7 +417,11 @@ function App() {
                   // User context menu
                   <>
                     <div 
-                      onClick={() => renameUser(contextMenu.userId!, users.find(u => u._id === contextMenu.userId)?.name || '')}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        renameUser(contextMenu.userId!, users.find(u => u._id === contextMenu.userId)?.name || '');
+                        setContextMenu(null);
+                      }}
                       style={{ 
                         cursor: 'pointer',
                         padding: '10px 16px',
@@ -432,7 +436,11 @@ function App() {
                       ✏️ Rename User
                     </div>
                     <div 
-                      onClick={() => deleteUser(contextMenu.userId!)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteUser(contextMenu.userId!);
+                        setContextMenu(null);
+                      }}
                       style={{ 
                         cursor: 'pointer',
                         padding: '10px 16px',
@@ -451,7 +459,11 @@ function App() {
                 ) : (
                   // Sidebar context menu
                   <div 
-                    onClick={addUser} 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      addUser();
+                      setContextMenu(null);
+                    }}
                     style={{ 
                       cursor: 'pointer',
                       padding: '10px 16px',
@@ -463,10 +475,13 @@ function App() {
                     onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-color)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    Add User
+                    ➕ Add User
                   </div>
                 )}
               </div>
+            )}
+            {contextMenu && (
+              <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 999 }} onClick={() => setContextMenu(null)}></div>
             )}
           </div>
           <div style={{ flex: 1, padding: '24px', overflow: 'hidden' }}>
