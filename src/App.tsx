@@ -227,7 +227,7 @@ function App() {
   function getCurrentFiles() {
     if (!selectedFolder) return [];
     // Ensure we only show files belonging to the active folder
-    return files.filter(f => f.folderId === selectedFolder);
+    return files.filter(f => String(f.folderId) === String(selectedFolder));
   }
 
   function handleFolderClick(folderId: string) {

@@ -113,7 +113,14 @@ app.delete('/api/folders/:id', async (req, res) => {
 // Files
 app.get('/api/files/:folderId', async (req, res) => {
   try {
-    const files = await db.collection('files').find({ folderId: req.params.folderId }).toArray();
+    const { folderId } = req.params;
+    // Query for folderId as either a string OR an ObjectId
+    const queryItems = [{ folderId: folderId }];
+    if (ObjectId.isValid(folderId)) {
+      queryItems.push({ folderId: new ObjectId(folderId) });
+    }
+    const query = { $or: queryItems };
+    const files = await db.collection('files').find(query).toArray();
     res.json(files);
   } catch (error) {
     res.status(500).json({ error: error.message });
