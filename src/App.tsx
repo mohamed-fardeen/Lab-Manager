@@ -50,6 +50,18 @@ function App() {
     }
   }, [selectedFolder]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'd' && selectedUser) {
+        e.preventDefault();
+        deleteUser(selectedUser);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedUser, users]);
+
   async function loadUsers() {
     try {
       const response = await fetch('/api/users');
@@ -307,16 +319,11 @@ function App() {
             padding: '20px', 
             overflowY: 'auto',
             overflowX: 'hidden',
-            borderRight: '1px solid var(--border-color)',
             maxHeight: '100vh',
             position: 'sticky',
             top: '0'
           }} 
-          onContextMenu={(e) => { 
-            e.preventDefault(); 
-            const rect = (e.target as HTMLElement).getBoundingClientRect();
-            setContextMenu({x: e.clientX, y: e.clientY, userId: undefined}); 
-          }}>
+          >
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -334,23 +341,42 @@ function App() {
               }}>
                 👥 Users
               </h3>
-              <button 
-                className="btn btn-sm"
-                onClick={addUser}
-                style={{
-                  fontSize: '18px',
-                  width: '32px',
-                  height: '32px',
-                  padding: '0',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                title="Add User"
-              >
-                ➕
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  className="btn btn-sm"
+                  onClick={addUser}
+                  style={{
+                    fontSize: '18px',
+                    width: '32px',
+                    height: '32px',
+                    padding: '0',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  title="Add User"
+                >
+                  ➕
+                </button>
+                {selectedUser && (
+                  <button 
+                    className="btn btn-sm btn-danger"
+                    onClick={() => deleteUser(selectedUser)}
+                    style={{
+                      fontSize: '14px',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title="Delete Selected User (Ctrl+D)"
+                  >
+                    🗑️
+                  </button>
+                )}
+              </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
               {users.map(user => (
@@ -436,52 +462,10 @@ function App() {
                     >
                       ✏️ Rename User
                     </button>
-                    <button 
-                      className="btn btn-danger"
-                      style={{ 
-                        width: '100%',
-                        justifyContent: 'flex-start',
-                        background: 'transparent',
-                        border: 'none',
-                        borderRadius: '0',
-                        borderTop: '1px solid var(--border-color)',
-                        padding: '10px 16px',
-                        textAlign: 'left'
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteUser(contextMenu.userId!);
-                        setContextMenu(null);
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--danger-color)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                    >
-                      🗑️ Delete User
-                    </button>
                   </>
                 ) : (
-                  // Sidebar context menu
-                  <button 
-                    className="btn btn-secondary"
-                    style={{ 
-                      width: '100%',
-                      justifyContent: 'flex-start',
-                      background: 'transparent',
-                      border: 'none',
-                      borderRadius: '0',
-                      padding: '10px 16px',
-                      textAlign: 'left'
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      addUser();
-                      setContextMenu(null);
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-color)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    ➕ Add User
-                  </button>
+                  // No sidebar context menu - removed
+                  <></>
                 )}
               </div>
             )}
