@@ -234,7 +234,15 @@ app.post('/api/ai/chat', async (req, res) => {
        <create_file filename="name_of_file.ext" folder="folder_name">
        content of the file
        </create_file>
-       If the folder doesn't exist, I will create it. Choose logical folder names like "Scripts", "Notes", "Code", etc.
+       
+       FOLDER SELECTION LOGIC:
+       - You must intelligently figure out where a file should be stored.
+       - CHECK the list of existing "Lab Categories" provided above. If an existing folder matches the purpose of the file (e.g., code belongs in an existing "Python" or "Scripts" folder), use that EXACT name.
+       - IF NO SPECIFIC FOLDER is mentioned and no existing folder fits:
+         * Use "Programs" for source code (.py, .c, .js, .cpp, etc.).
+         * Use "Documents" for text files, notes, or documentation (.txt, .md, .docs).
+         * Use "Data" for data files (.csv, .json).
+       - If the user's query implies a specific academic or technical context (e.g., "for algorithmic design"), use that context as the folder name to keep things organized.
     `;
 
     const isVisionModel = requestedModel && requestedModel.includes('vision');
