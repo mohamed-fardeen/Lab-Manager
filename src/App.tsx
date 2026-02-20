@@ -382,6 +382,36 @@ function App() {
       if (data.error) throw new Error(data.error);
 
       setChatHistory(prev => [...prev, { role: 'assistant', content: data.message }]);
+
+      // Check for file creation tags in the response
+      const fileCreationMatch = data.message.matchAll(/<create_file filename="(.*?)" folder="(.*?)">([\s\S]*?)<\/create_file>/g);
+      let createdAny = false;
+
+      for (const match of fileCreationMatch) {
+        const [_, filename, folderName, content] = match;
+        try {
+          await fetch('/api/files/ai-create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: selectedUser,
+              filename,
+              content: content.trim(),
+              folderName
+            })
+          });
+          createdAny = true;
+          console.log(`AI Auto-created file: ${filename} in ${folderName}`);
+        } catch (err) {
+          console.error('Failed to auto-create file:', err);
+        }
+      }
+
+      if (createdAny) {
+        // Refresh folders and files
+        loadFolders(selectedUser);
+        if (selectedFolder) loadFiles(selectedFolder);
+      }
     } catch (error) {
       console.error('Chat Error:', error);
       setChatHistory(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
@@ -933,7 +963,7 @@ function App() {
                     <div
                       className="markdown-content"
                       dangerouslySetInnerHTML={{
-                        __html: DOMPurify.sanitize(marked.parse(msg.content, {
+                        __html: DOMPurify.sanitize(marked.parse(msg.content.replace(/<create_file[\s\S]*?<\/create_file>/g, ''), {
                           renderer: Object.assign(new marked.Renderer(), {
                             code(token: any, language?: string) {
                               const code = typeof token === 'object' ? token.text : token;

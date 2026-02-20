@@ -139,6 +139,38 @@ app.delete('/api/files/:id', async (req, res) => {
   }
 });
 
+app.post('/api/files/ai-create', async (req, res) => {
+  try {
+    const { userId, filename, content, folderName } = req.body;
+
+    // Find or create the folder
+    let folder = await db.collection('folders').findOne({ userId, name: folderName });
+
+    if (!folder) {
+      const folderResult = await db.collection('folders').insertOne({
+        name: folderName,
+        userId,
+        created: Date.now()
+      });
+      folder = { _id: folderResult.insertedId, name: folderName };
+    }
+
+    const file = {
+      name: filename,
+      type: 'text/plain', // Default to plain text, frontend/extension can refine
+      size: content.length,
+      data: Buffer.from(content).toString('base64'),
+      added: Date.now(),
+      folderId: folder._id.toString()
+    };
+
+    const result = await db.collection('files').insertOne(file);
+    res.json({ success: true, fileId: result.insertedId, folderId: folder._id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // AI Chat
 app.post('/api/ai/chat', async (req, res) => {
   try {
@@ -196,7 +228,14 @@ app.post('/api/ai/chat', async (req, res) => {
     Instructions:
     1. If image data is provided in the message history, analyze the visual content to answer.
     2. Use the provided text contents from files to answer complex technical questions.
-    3. Be professional and concise.`;
+    3. Be professional and concise.
+    4. POWERFUL FEATURE: You can automatically create files in the user's workspace.
+       To create a file, use the following syntax anywhere in your response:
+       <create_file filename="name_of_file.ext" folder="folder_name">
+       content of the file
+       </create_file>
+       If the folder doesn't exist, I will create it. Choose logical folder names like "Scripts", "Notes", "Code", etc.
+    `;
 
     const isVisionModel = requestedModel && requestedModel.includes('vision');
     const model = requestedModel || (imagesForVision.length > 0 ? 'llama-3.2-11b-vision-preview' : 'llama-3.3-70b-versatile');
