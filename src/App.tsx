@@ -182,30 +182,6 @@ function App() {
     }
   }
 
-  async function renameUser(userId: string, currentName: string) {
-    const newName = prompt('Enter new name:', currentName);
-    if (newName && newName !== currentName) {
-      try {
-        const response = await fetch(`/api/users/${userId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: newName })
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        setUsers(users.map(user => 
-          user._id === userId ? { ...user, name: newName } : user
-        ));
-      } catch (error) {
-        console.error('Error renaming user:', error);
-        alert('Error renaming user. Please check console for details.');
-      }
-    }
-  }
-
   function getCurrentFolders() {
     if (!selectedUser) return [];
     if (!selectedFolder) {
@@ -439,30 +415,28 @@ function App() {
                 }}
               >
                 {contextMenu.userId ? (
-                  // User context menu
-                  <>
-                    <button 
-                      className="btn btn-secondary"
-                      style={{ 
-                        width: '100%',
-                        justifyContent: 'flex-start',
-                        background: 'transparent',
-                        border: 'none',
-                        borderRadius: '0',
-                        padding: '10px 16px',
-                        textAlign: 'left'
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        renameUser(contextMenu.userId!, users.find(u => u._id === contextMenu.userId)?.name || '');
-                        setContextMenu(null);
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-color)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                    >
-                      ✏️ Rename User
-                    </button>
-                  </>
+                  // User context menu - only delete option
+                  <button 
+                    className="btn btn-danger"
+                    style={{ 
+                      width: '100%',
+                      justifyContent: 'flex-start',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '0',
+                      padding: '10px 16px',
+                      textAlign: 'left'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteUser(contextMenu.userId!);
+                      setContextMenu(null);
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--danger-color)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    🗑️ Delete User
+                  </button>
                 ) : (
                   // No sidebar context menu - removed
                   <></>
