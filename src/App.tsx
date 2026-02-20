@@ -392,7 +392,7 @@ function App() {
         const [_, filename, folderName, content] = match;
         console.log(`Processing AI file request: ${filename} in ${folderName}`);
         try {
-          await fetch('/api/files/ai-create', {
+          const res = await fetch('/api/files/ai-create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -402,16 +402,23 @@ function App() {
               folderName
             })
           });
+
+          if (!res.ok) throw new Error(await res.text());
+
           createdAny = true;
           console.log(`AI Auto-created file: ${filename} in ${folderName}`);
 
-          // Add a temporary local message to confirm creation
+          // Add a permanent local message to confirm creation
           setChatHistory(prev => [...prev, {
             role: 'assistant',
-            content: `📂 **Auto-saved**: \`${filename}\` has been created in the \`${folderName}\` folder.`
+            content: `✅ **SYSTEM UPDATE**: File \`${filename}\` has been locked into the \`${folderName}\` category.`
           }]);
-        } catch (err) {
+        } catch (err: any) {
           console.error('Failed to auto-create file:', err);
+          setChatHistory(prev => [...prev, {
+            role: 'assistant',
+            content: `❌ **SYSTEM ERROR**: Failed to save \`${filename}\`. ${err.message}`
+          }]);
         }
       }
 

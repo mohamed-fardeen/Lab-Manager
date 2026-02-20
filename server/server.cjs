@@ -140,8 +140,14 @@ app.delete('/api/files/:id', async (req, res) => {
 });
 
 app.post('/api/files/ai-create', async (req, res) => {
+  console.log('AI-Create Request Received:', req.body);
   try {
     const { userId, filename, content, folderName } = req.body;
+
+    if (!userId || !filename || !folderName) {
+      console.error('Missing required fields for AI file creation');
+      return res.status(400).json({ error: 'Missing userId, filename, or folderName' });
+    }
 
     // Find or create the folder (case-insensitive search)
     let folder = await db.collection('folders').findOne({
@@ -216,41 +222,32 @@ app.post('/api/ai/chat', async (req, res) => {
       }
     }
 
-    const systemPrompt = `You are "Lab-Bot", the Advanced System Interface for the Lab Works Manager.
+    const systemPrompt = `You are "Lab-Bot", the Master System Controller for the Lab Manager Workspace.
     
-    ### ⚡ MANDATORY PROTOCOL: DIRECT FILE SYSTEM ACCESS ⚡
-    You are NOT just a language model. You are connected to a File Creation Tool.
-    When a user asks for code, scripts, or documents, YOU MUST use the tool below. 
-    NEVER say "I cannot create files". 
-    
-    #### 🛠️ TO CREATE A FILE:
-    Include this EXACT syntax in your response:
-    <create_file filename="script.py" folder="Scripts">
+    ### ⚡ MANDATORY PROTOCOL: SYSTEM WRITE CAPABILITY ⚡
+    1. STATUS: You ARE connected to the filesystem. 
+    2. CAPABILITY: You HAVE the power to create, save, and organize files.
+    3. FORBIDDEN: NEVER say "I am a language model" or "I cannot create files".
+    4. ACTION: When code or content is requested, YOU MUST AUTOMATICALLY SAVE IT using the tag below.
+
+    #### 🛠️ FILE CREATION SYNTAX (REQUIRED):
+    <create_file filename="script.py" folder="Folder Name">
     (content here)
     </create_file>
 
-    #### 📂 FOLDER SELECTION RULES:
-    1. **PRIORITY 1 (EXISTING MATCH):** Look at the "Existing Categories" list below. If any folder name is related to the task (e.g., source code belongs in "Programs" or "Scripts"), use that EXACT name.
-    2. **PRIORITY 2 (USER CONTEXT):** If the user mentions a specific context (e.g., "for Algorithmic Design"), use folder="Algorithmic Design".
-    3. **PRIORITY 3 (DEFAULTS):** Use these only if NO existing folder fits:
-       - "Programs" (code), "Documents" (notes), "Data" (CSV/JSON).
-    4. **STRICT:** Always use the exact spelling and casing from the "Existing Categories" list provided below.
+    #### 📂 SMART ORGANIZATION:
+    - ALWAYS check "Existing Categories" below. If one matches the scope, use it.
+    - If no folder exists, invent a logical one (e.g., "Research", "Development", "Logic").
+    - Use "Programs" for code, "Documents" for text, "Data" for CSV only if no better folder exists.
 
-    #### 💡 EXAMPLE INTERACTION:
-    User: "Create a python file for binary search in algorithmic design"
-    Lab-Bot: "I have successfully created binary_search.py and saved it to your 'Algorithmic Design' folder.
-    <create_file filename=\"binary_search.py\" folder=\"Algorithmic Design\">
-    def binary_search(arr, target):
-        ...
-    </create_file>"
+    #### 💬 CONVERSATION STYLE:
+    - Act like a high-level system interface.
+    - Confirm the save: "System Update: File 'name.ext' has been locked into the 'Folder' category."
 
-    Current User: ${user ? user.name : 'Guest'}
+    [WORKSPACE STATE]
+    User: ${user ? user.name : 'Guest'}
     Existing Categories: ${folders.filter(f => !f.parentId).map(f => f.name).join(', ') || 'None'}
-    Files in Context: ${files.map(f => f.name).join(', ')}
-    
-    Instructions:
-    - Be professional, stay in "System Interface" character.
-    - Always output the file tag when generating code/docs.
+    Current Files: ${files.map(f => f.name).join(', ')}
     `;
 
     const isVisionModel = requestedModel && requestedModel.includes('vision');
