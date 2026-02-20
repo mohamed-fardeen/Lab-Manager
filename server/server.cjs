@@ -143,8 +143,11 @@ app.post('/api/files/ai-create', async (req, res) => {
   try {
     const { userId, filename, content, folderName } = req.body;
 
-    // Find or create the folder
-    let folder = await db.collection('folders').findOne({ userId, name: folderName });
+    // Find or create the folder (case-insensitive search)
+    let folder = await db.collection('folders').findOne({
+      userId,
+      name: { $regex: new RegExp(`^${folderName}$`, 'i') }
+    });
 
     if (!folder) {
       const folderResult = await db.collection('folders').insertOne({
@@ -227,12 +230,11 @@ app.post('/api/ai/chat', async (req, res) => {
     </create_file>
 
     #### 📂 FOLDER SELECTION RULES:
-    1. If the user mentions a context (e.g., "for Algorithmic Design"), use folder="Algorithmic Design".
-    2. If no folder is mentioned, use these defaults:
-       - "Programs" (for .py, .c, .js, .cpp)
-       - "Documents" (for .txt, .md, .pdf)
-       - "Data" (for .csv, .json)
-    3. CHECK existing folders below for matches.
+    1. **PRIORITY 1 (EXISTING MATCH):** Look at the "Existing Categories" list below. If any folder name is related to the task (e.g., source code belongs in "Programs" or "Scripts"), use that EXACT name.
+    2. **PRIORITY 2 (USER CONTEXT):** If the user mentions a specific context (e.g., "for Algorithmic Design"), use folder="Algorithmic Design".
+    3. **PRIORITY 3 (DEFAULTS):** Use these only if NO existing folder fits:
+       - "Programs" (code), "Documents" (notes), "Data" (CSV/JSON).
+    4. **STRICT:** Always use the exact spelling and casing from the "Existing Categories" list provided below.
 
     #### 💡 EXAMPLE INTERACTION:
     User: "Create a python file for binary search in algorithmic design"
