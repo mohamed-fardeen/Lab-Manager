@@ -669,7 +669,7 @@ function App() {
                   </div>
                 )}
 
-                {canUpload && currentFiles.length > 0 && (
+                {currentFiles.length > 0 && (
                   <div>
                     <h2 style={{
                       margin: '0 0 20px 0',
