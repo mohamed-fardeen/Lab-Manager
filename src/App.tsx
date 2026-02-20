@@ -32,6 +32,9 @@ function App() {
   const [lightbox, setLightbox] = useState<FileItem | null>(null);
   const [contextMenu, setContextMenu] = useState<{x: number, y: number, userId?: string} | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionStart, setSelectionStart] = useState<{x: number, y: number} | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<{x: number, y: number} | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -238,6 +241,62 @@ function App() {
       };
       reader.readAsDataURL(file);
     }
+  }
+
+  function handleFileSelection(e: React.MouseEvent, fileId: string) {
+    if (e.ctrlKey || e.metaKey) {
+      // Multi-select with Ctrl/Cmd+Click
+      if (selectedFiles.includes(fileId)) {
+        setSelectedFiles(selectedFiles.filter(id => id !== fileId));
+      } else {
+        setSelectedFiles([...selectedFiles, fileId]);
+      }
+    } else {
+      // Single select with regular click
+      setSelectedFiles([fileId]);
+    }
+  }
+
+  function handleSelectionStart(e: React.MouseEvent) {
+    setIsSelecting(true);
+    setSelectionStart({ x: e.clientX, y: e.clientY });
+    setSelectionEnd({ x: e.clientX, y: e.clientY });
+  }
+
+  function handleSelectionMove(e: React.MouseEvent) {
+    if (isSelecting) {
+      setSelectionEnd({ x: e.clientX, y: e.clientY });
+    }
+  }
+
+  function handleSelectionEnd(e: React.MouseEvent) {
+    if (!isSelecting || !selectionStart) return;
+
+    const fileGrid = e.currentTarget as HTMLElement;
+    const fileElements = fileGrid.querySelectorAll('[data-file-id]');
+    const selectedIds: string[] = [];
+
+    fileElements.forEach(element => {
+      const rect = element.getBoundingClientRect();
+      const fileId = element.getAttribute('data-file-id');
+      
+      if (fileId) {
+        // Check if element is within selection rectangle
+        if (
+          rect.left >= Math.min(selectionStart!.x, selectionEnd!.x) - 5 &&
+          rect.right <= Math.max(selectionStart!.x, selectionEnd!.x) + 5 &&
+          rect.top >= Math.min(selectionStart!.y, selectionEnd!.y) - 5 &&
+          rect.bottom <= Math.max(selectionStart!.y, selectionEnd!.y) + 5
+        ) {
+          selectedIds.push(fileId);
+        }
+      }
+    });
+
+    setSelectedFiles(selectedIds);
+    setIsSelecting(false);
+    setSelectionStart(null);
+    setSelectionEnd(null);
   }
 
   async function deleteFile(fileId: string) {
@@ -578,7 +637,11 @@ function App() {
                         </div>
                       )}
                     </h2>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}
+                      onMouseDown={handleSelectionStart}
+                      onMouseMove={handleSelectionMove}
+                      onMouseUp={handleSelectionEnd}
+                    >
                       {currentFiles.map(file => (
                         <div key={file._id} className="card" style={{ position: 'relative' }}>
                           <div 
