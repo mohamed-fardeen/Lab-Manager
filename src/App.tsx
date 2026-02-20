@@ -138,14 +138,23 @@ function App() {
           const filesResponse = await fetch(`/api/files/${folder._id}`);
           const files = await filesResponse.json();
           for (const file of files) {
-            await fetch(`/api/files/${file._id}`, { method: 'DELETE' });
+            const deleteFileResponse = await fetch(`/api/files/${file._id}`, { method: 'DELETE' });
+            if (!deleteFileResponse.ok) {
+              console.error('Failed to delete file:', file._id);
+            }
           }
           // Delete the folder
-          await fetch(`/api/folders/${folder._id}`, { method: 'DELETE' });
+          const deleteFolderResponse = await fetch(`/api/folders/${folder._id}`, { method: 'DELETE' });
+          if (!deleteFolderResponse.ok) {
+            console.error('Failed to delete folder:', folder._id);
+          }
         }
         
         // Delete the user
-        await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+        const deleteUserResponse = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+        if (!deleteUserResponse.ok) {
+          throw new Error(`Failed to delete user: ${deleteUserResponse.status}`);
+        }
         
         // Refresh UI
         if (selectedUser === userId) {
@@ -153,8 +162,10 @@ function App() {
           setSelectedFolder(null);
         }
         loadUsers();
+        alert('User deleted successfully!');
       } catch (error) {
         console.error('Error deleting user:', error);
+        alert('Error deleting user. Please check console for details.');
       }
     }
   }
@@ -163,16 +174,22 @@ function App() {
     const newName = prompt('Enter new name:', currentName);
     if (newName && newName !== currentName) {
       try {
-        await fetch(`/api/users/${userId}`, {
+        const response = await fetch(`/api/users/${userId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: newName })
         });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         setUsers(users.map(user => 
           user._id === userId ? { ...user, name: newName } : user
         ));
       } catch (error) {
         console.error('Error renaming user:', error);
+        alert('Error renaming user. Please check console for details.');
       }
     }
   }
