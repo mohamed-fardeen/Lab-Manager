@@ -30,7 +30,7 @@ function App() {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<FileItem | null>(null);
-  const [contextMenu, setContextMenu] = useState<{x: number, y: number} | null>(null);
+  const [contextMenu, setContextMenu] = useState<{x: number, y: number, userId?: string} | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -121,6 +121,46 @@ function App() {
         loadUsers(); // Refresh users
       } catch (error) {
         console.error('Error adding user:', error);
+      }
+    }
+  }
+
+  async function deleteUser(userId: string) {
+    if (confirm('Delete user and all their data?')) {
+      try {
+        // First delete all folders and files for this user
+        const userFolders = await db.collection('folders').find({ userId }).toArray();
+        for (const folder of userFolders) {
+          // Delete all files in this folder
+          await db.collection('files').deleteMany({ folderId: folder._id });
+          // Delete the folder
+          await db.collection('folders').deleteOne({ _id: folder._id });
+        }
+        // Delete the user
+        await db.collection('users').deleteOne({ _id: userId });
+        
+        // Refresh UI
+        if (selectedUser === userId) {
+          setSelectedUser(null);
+          setSelectedFolder(null);
+        }
+        loadUsers();
+      } catch (error) {
+        console.error('Error deleting user:', error);
+      }
+    }
+  }
+
+  async function renameUser(userId: string, currentName: string) {
+    const newName = prompt('Enter new name:', currentName);
+    if (newName && newName !== currentName) {
+      try {
+        await db.collection('users').updateOne({ _id: userId }, { $set: { name: newName } });
+        setUsers(users.map(user => 
+          user._id === userId ? { ...user, name: newName } : user
+        ));
+      } catch (error) {
+        console.error('Error renaming user:', error);
       }
     }
   }
@@ -216,7 +256,7 @@ function App() {
         borderBottom: '1px solid var(--border-color)',
         boxShadow: 'var(--shadow-sm)'
       }}>
-        Lab Works Manager
+        🧪 Lab Works Manager
       </header>
       {loading ? (
         <div style={{ 
@@ -237,21 +277,53 @@ function App() {
             background: 'var(--secondary-bg)', 
             padding: '20px', 
             overflowY: 'auto',
-            borderRight: '1px solid var(--border-color)'
+            overflowX: 'hidden',
+            borderRight: '1px solid var(--border-color)',
+            maxHeight: '100vh',
+            position: 'sticky',
+            top: '0'
           }} 
-          onContextMenu={(e) => { e.preventDefault(); setContextMenu({x: e.clientX, y: e.clientY}); }}>
-            <h3 style={{ 
-              margin: '0 0 16px 0', 
-              fontSize: '18px', 
-              fontWeight: '600',
-              color: 'var(--text-color)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
+          onContextMenu={(e) => { 
+            e.preventDefault(); 
+            const rect = (e.target as HTMLElement).getBoundingClientRect();
+            setContextMenu({x: e.clientX, y: e.clientY, userId: undefined}); 
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: '16px' 
             }}>
-              Users
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <h3 style={{ 
+                margin: '0', 
+                fontSize: '18px', 
+                fontWeight: '600',
+                color: 'var(--text-color)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                👥 Users
+              </h3>
+              <button 
+                className="btn btn-sm"
+                onClick={addUser}
+                style={{
+                  fontSize: '18px',
+                  width: '32px',
+                  height: '32px',
+                  padding: '0',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Add User"
+              >
+                ➕
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
               {users.map(user => (
                 <div 
                   key={user._id} 
@@ -261,9 +333,16 @@ function App() {
                     cursor: 'pointer', 
                     background: selectedUser === user._id ? 'var(--accent-color)' : 'var(--secondary-bg)',
                     border: selectedUser === user._id ? '2px solid var(--accent-color)' : '1px solid var(--border-color)',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    position: 'relative'
                   }} 
                   onClick={() => { setSelectedUser(user._id); setSelectedFolder(null); }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rect = (e.target as HTMLElement).getBoundingClientRect();
+                    setContextMenu({x: e.clientX, y: e.clientY, userId: user._id});
+                  }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{ 
@@ -299,27 +378,65 @@ function App() {
                   border: '1px solid var(--accent-color)',
                   padding: '8px 0',
                   zIndex: 1000,
-                  minWidth: '150px',
+                  minWidth: '160px',
                   borderRadius: '8px',
                   boxShadow: 'var(--shadow)'
                 }} 
                 onClick={() => setContextMenu(null)}
               >
-                <div 
-                  onClick={addUser} 
-                  style={{ 
-                    cursor: 'pointer',
-                    padding: '10px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    transition: 'background 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-color)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  Add User
-                </div>
+                {contextMenu.userId ? (
+                  // User context menu
+                  <>
+                    <div 
+                      onClick={() => renameUser(contextMenu.userId!, users.find(u => u._id === contextMenu.userId)?.name || '')}
+                      style={{ 
+                        cursor: 'pointer',
+                        padding: '10px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        transition: 'background 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-color)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      ✏️ Rename User
+                    </div>
+                    <div 
+                      onClick={() => deleteUser(contextMenu.userId!)}
+                      style={{ 
+                        cursor: 'pointer',
+                        padding: '10px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        transition: 'background 0.2s ease',
+                        borderTop: '1px solid var(--border-color)'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--danger-color)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      🗑️ Delete User
+                    </div>
+                  </>
+                ) : (
+                  // Sidebar context menu
+                  <div 
+                    onClick={addUser} 
+                    style={{ 
+                      cursor: 'pointer',
+                      padding: '10px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'background 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-color)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    ➕ Add User
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -407,6 +524,7 @@ function App() {
                     </div>
                   </div>
                 )}
+                
                 {canUpload && currentFiles.length > 0 && (
                   <div>
                     <h2 style={{ 
@@ -516,6 +634,7 @@ function App() {
                     </div>
                   </div>
                 )}
+                
                 {canUpload && (
                   <div 
                     className="card"
@@ -623,7 +742,7 @@ function App() {
               style={{ 
                 width: '100%', 
                 height: '100%', 
-                objectFit: 'contain',
+                objectFit: 'contain', 
                 display: 'block'
               }} 
               onClick={(e) => e.stopPropagation()}
@@ -669,7 +788,9 @@ function App() {
           </div>
         </div>
       )}
-      {contextMenu && <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 999 }} onClick={() => setContextMenu(null)}></div>}
+      {contextMenu && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 999 }} onClick={() => setContextMenu(null)}></div>
+      )}
     </div>
   );
 }
