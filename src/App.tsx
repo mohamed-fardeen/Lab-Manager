@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
 interface User {
   _id: string;
@@ -30,12 +32,14 @@ function App() {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<FileItem | null>(null);
-  const [contextMenu, setContextMenu] = useState<{x: number, y: number, userId?: string} | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [isSelecting, setIsSelecting] = useState(false);
-  const [selectionStart, setSelectionStart] = useState<{x: number, y: number} | null>(null);
-  const [selectionEnd, setSelectionEnd] = useState<{x: number, y: number} | null>(null);
+  const [selectionStart, setSelectionStart] = useState<{ x: number, y: number } | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<{ x: number, y: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chatHistory, setChatHistory] = useState<{ role: string, content: string }[]>([]);
+  const [chatMessage, setChatMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -147,7 +151,7 @@ function App() {
         // Get all folders for this user
         const foldersResponse = await fetch(`/api/folders/${userId}`);
         const userFolders = await foldersResponse.json();
-        
+
         // Delete all files and folders for this user
         for (const folder of userFolders) {
           // Delete all files in this folder
@@ -165,13 +169,13 @@ function App() {
             console.error('Failed to delete folder:', folder._id);
           }
         }
-        
+
         // Delete the user
         const deleteUserResponse = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
         if (!deleteUserResponse.ok) {
           throw new Error(`Failed to delete user: ${deleteUserResponse.status}`);
         }
-        
+
         // Refresh UI
         if (selectedUser === userId) {
           setSelectedUser(null);
@@ -258,42 +262,53 @@ function App() {
   }
 
   function handleSelectionStart(e: React.MouseEvent) {
+    // Only start selection if clicking on the grid background, not on a card or button
+    if ((e.target as HTMLElement).closest('.card') || (e.target as HTMLElement).closest('.btn')) return;
+
     setIsSelecting(true);
     setSelectionStart({ x: e.clientX, y: e.clientY });
     setSelectionEnd({ x: e.clientX, y: e.clientY });
+    setSelectedFiles([]);
   }
 
   function handleSelectionMove(e: React.MouseEvent) {
-    if (isSelecting) {
+    if (isSelecting && selectionStart) {
       setSelectionEnd({ x: e.clientX, y: e.clientY });
+
+      const fileGrid = e.currentTarget as HTMLElement;
+      const fileElements = fileGrid.querySelectorAll('[data-file-id]');
+
+      const rectA = {
+        left: Math.min(selectionStart.x, e.clientX),
+        top: Math.min(selectionStart.y, e.clientY),
+        right: Math.max(selectionStart.x, e.clientX),
+        bottom: Math.max(selectionStart.y, e.clientY)
+      };
+
+      const selectedIds: string[] = [];
+      fileElements.forEach(element => {
+        const rectB = element.getBoundingClientRect();
+        const fileId = element.getAttribute('data-file-id');
+
+        if (fileId) {
+          // Check for intersection (Standard rectangle collision)
+          const isIntersecting = !(
+            rectB.left > rectA.right ||
+            rectB.right < rectA.left ||
+            rectB.top > rectA.bottom ||
+            rectB.bottom < rectA.top
+          );
+
+          if (isIntersecting) {
+            selectedIds.push(fileId);
+          }
+        }
+      });
+      setSelectedFiles(selectedIds);
     }
   }
 
-  function handleSelectionEnd(e: React.MouseEvent) {
-    if (!isSelecting || !selectionStart) return;
-
-    const fileGrid = e.currentTarget as HTMLElement;
-    const fileElements = fileGrid.querySelectorAll('[data-file-id]');
-    const selectedIds: string[] = [];
-
-    fileElements.forEach(element => {
-      const rect = element.getBoundingClientRect();
-      const fileId = element.getAttribute('data-file-id');
-      
-      if (fileId) {
-        // Check if element is within selection rectangle
-        if (
-          rect.left >= Math.min(selectionStart!.x, selectionEnd!.x) - 5 &&
-          rect.right <= Math.max(selectionStart!.x, selectionEnd!.x) + 5 &&
-          rect.top >= Math.min(selectionStart!.y, selectionEnd!.y) - 5 &&
-          rect.bottom <= Math.max(selectionStart!.y, selectionEnd!.y) + 5
-        ) {
-          selectedIds.push(fileId);
-        }
-      }
-    });
-
-    setSelectedFiles(selectedIds);
+  function handleSelectionEnd() {
     setIsSelecting(false);
     setSelectionStart(null);
     setSelectionEnd(null);
@@ -318,17 +333,48 @@ function App() {
     link.click();
   }
 
+  async function handleChat() {
+    if (!chatMessage.trim() || !selectedUser) return;
+
+    const userMsg = { role: 'user', content: chatMessage };
+    setChatHistory([...chatHistory, userMsg]);
+    setChatMessage('');
+    setIsTyping(true);
+
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: chatMessage,
+          userId: selectedUser,
+          folderId: selectedFolder,
+          history: chatHistory
+        })
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      setChatHistory(prev => [...prev, { role: 'assistant', content: data.message }]);
+    } catch (error) {
+      console.error('Chat Error:', error);
+      setChatHistory(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
+    } finally {
+      setIsTyping(false);
+    }
+  }
+
   const currentFolders = getCurrentFolders();
   const currentFiles = getCurrentFiles();
   const canUpload = selectedFolder && !folders.some(f => f.parentId === selectedFolder);
 
   return (
     <div className="fade-in" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-color)', color: 'var(--text-color)' }}>
-      <header style={{ 
-        textAlign: 'center', 
-        padding: '24px 20px', 
-        background: 'linear-gradient(135deg, var(--secondary-bg) 0%, var(--tertiary-bg) 100%)', 
-        fontSize: '28px', 
+      <header style={{
+        textAlign: 'center',
+        padding: '24px 20px',
+        background: 'linear-gradient(135deg, var(--secondary-bg) 0%, var(--tertiary-bg) 100%)',
+        fontSize: '28px',
         fontWeight: 'bold',
         borderBottom: '1px solid var(--border-color)',
         boxShadow: 'var(--shadow-sm)'
@@ -336,39 +382,39 @@ function App() {
         🧪 Lab Works Manager
       </header>
       {loading ? (
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          marginTop: '100px', 
-          fontSize: '18px' 
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: '100px',
+          fontSize: '18px'
         }}>
           <div className="loading"></div>
           <span style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>Loading your lab workspace...</span>
         </div>
       ) : (
         <div style={{ display: 'flex', flex: 1 }}>
-          <div style={{ 
-            width: '280px', 
-            background: 'var(--secondary-bg)', 
-            padding: '20px', 
+          <div style={{
+            width: '280px',
+            background: 'var(--secondary-bg)',
+            padding: '20px',
             overflowY: 'auto',
             overflowX: 'hidden',
             maxHeight: '100vh',
             position: 'sticky',
             top: '0'
-          }} 
+          }}
           >
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              marginBottom: '16px' 
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px'
             }}>
-              <h3 style={{ 
-                margin: '0', 
-                fontSize: '18px', 
+              <h3 style={{
+                margin: '0',
+                fontSize: '18px',
                 fontWeight: '600',
                 color: 'var(--text-color)',
                 display: 'flex',
@@ -378,7 +424,7 @@ function App() {
                 👥 Users
               </h3>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button 
+                <button
                   className="btn btn-sm"
                   onClick={addUser}
                   style={{
@@ -396,7 +442,7 @@ function App() {
                   ➕
                 </button>
                 {selectedUser && (
-                  <button 
+                  <button
                     className="btn btn-sm btn-danger"
                     onClick={() => deleteUser(selectedUser)}
                     style={{
@@ -416,30 +462,24 @@ function App() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
               {users.map(user => (
-                <div 
-                  key={user._id} 
+                <div
+                  key={user._id}
                   className="card"
-                  style={{ 
+                  style={{
                     padding: '12px 16px',
-                    cursor: 'pointer', 
+                    cursor: 'pointer',
                     background: selectedUser === user._id ? 'var(--accent-color)' : 'var(--secondary-bg)',
                     border: selectedUser === user._id ? '2px solid var(--accent-color)' : '1px solid var(--border-color)',
                     transition: 'all 0.2s ease',
                     position: 'relative'
-                  }} 
-                  onClick={() => { setSelectedUser(user._id); setSelectedFolder(null); }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const rect = (e.target as HTMLElement).getBoundingClientRect();
-                    setContextMenu({x: e.clientX, y: e.clientY, userId: user._id});
                   }}
+                  onClick={() => { setSelectedUser(user._id); setSelectedFolder(null); }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ 
-                      width: '32px', 
-                      height: '32px', 
-                      borderRadius: '50%', 
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
                       background: selectedUser === user._id ? 'var(--text-color)' : 'var(--accent-color)',
                       display: 'flex',
                       alignItems: 'center',
@@ -458,61 +498,14 @@ function App() {
                 </div>
               ))}
             </div>
-            {contextMenu && (
-              <div 
-                className="card fade-in"
-                style={{ 
-                  position: 'fixed', 
-                  top: contextMenu.y, 
-                  left: contextMenu.x, 
-                  background: 'var(--tertiary-bg)', 
-                  border: '1px solid var(--accent-color)',
-                  padding: '8px 0',
-                  zIndex: 1000,
-                  minWidth: '160px',
-                  borderRadius: '8px',
-                  boxShadow: 'var(--shadow)'
-                }}
-              >
-                {contextMenu.userId ? (
-                  // User context menu - only delete option
-                  <button 
-                    className="btn btn-danger"
-                    style={{ 
-                      width: '100%',
-                      justifyContent: 'flex-start',
-                      background: 'transparent',
-                      border: 'none',
-                      borderRadius: '0',
-                      padding: '10px 16px',
-                      textAlign: 'left'
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteUser(contextMenu.userId!);
-                      setContextMenu(null);
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--danger-color)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    🗑️ Delete User
-                  </button>
-                ) : (
-                  // No sidebar context menu - removed
-                  <></>
-                )}
-              </div>
-            )}
-            {contextMenu && (
-              <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 999 }} onClick={() => setContextMenu(null)}></div>
-            )}
+            {/* User context menu removed */}
           </div>
           <div style={{ flex: 1, padding: '24px', overflow: 'hidden' }}>
             {selectedUser ? (
               <>
                 {selectedFolder && (
                   <div style={{ marginBottom: '20px' }}>
-                    <button 
+                    <button
                       className="btn btn-secondary"
                       onClick={() => setSelectedFolder(null)}
                     >
@@ -520,12 +513,12 @@ function App() {
                     </button>
                   </div>
                 )}
-                
+
                 {currentFolders.length > 0 && (
                   <div style={{ marginBottom: '32px' }}>
-                    <h2 style={{ 
-                      margin: '0 0 20px 0', 
-                      fontSize: '20px', 
+                    <h2 style={{
+                      margin: '0 0 20px 0',
+                      fontSize: '20px',
                       fontWeight: '600',
                       color: 'var(--text-color)',
                       display: 'flex',
@@ -536,38 +529,38 @@ function App() {
                     </h2>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
                       {currentFolders.map(folder => (
-                        <div 
-                          key={folder._id} 
+                        <div
+                          key={folder._id}
                           className="card"
-                          style={{ 
+                          style={{
                             cursor: 'pointer',
                             position: 'relative',
                             overflow: 'hidden'
-                          }} 
+                          }}
                           onClick={() => handleFolderClick(folder._id)}
                         >
-                          <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
                             gap: '12px',
                             marginBottom: '8px'
                           }}>
-                            <div style={{ 
+                            <div style={{
                               fontSize: '32px',
                               filter: 'hue-rotate(200deg)'
                             }}>
                               📂
                             </div>
                             <div style={{ flex: 1 }}>
-                              <div style={{ 
-                                fontSize: '16px', 
+                              <div style={{
+                                fontSize: '16px',
                                 fontWeight: '600',
                                 marginBottom: '4px'
                               }}>
                                 {folder.name}
                               </div>
-                              <div style={{ 
-                                fontSize: '12px', 
+                              <div style={{
+                                fontSize: '12px',
                                 color: 'var(--text-secondary)',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -591,12 +584,12 @@ function App() {
                     </div>
                   </div>
                 )}
-                
+
                 {canUpload && currentFiles.length > 0 && (
                   <div>
-                    <h2 style={{ 
-                      margin: '0 0 20px 0', 
-                      fontSize: '20px', 
+                    <h2 style={{
+                      margin: '0 0 20px 0',
+                      fontSize: '20px',
                       fontWeight: '600',
                       color: 'var(--text-color)',
                       display: 'flex',
@@ -610,7 +603,7 @@ function App() {
                           <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
                             {selectedFiles.length} selected
                           </span>
-                          <button 
+                          <button
                             className="btn btn-sm btn-secondary"
                             onClick={() => {
                               selectedFiles.forEach(fileId => {
@@ -621,7 +614,7 @@ function App() {
                           >
                             ⬇️ Download All
                           </button>
-                          <button 
+                          <button
                             className="btn btn-sm btn-danger"
                             onClick={() => {
                               if (confirm(`Delete ${selectedFiles.length} selected files?`)) {
@@ -637,14 +630,27 @@ function App() {
                         </div>
                       )}
                     </h2>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', position: 'relative' }}
                       onMouseDown={handleSelectionStart}
                       onMouseMove={handleSelectionMove}
                       onMouseUp={handleSelectionEnd}
+                      onMouseLeave={handleSelectionEnd}
                     >
                       {currentFiles.map(file => (
-                        <div key={file._id} className="card" style={{ position: 'relative' }}>
-                          <div 
+                        <div
+                          key={file._id}
+                          className="card"
+                          data-file-id={file._id}
+                          style={{
+                            position: 'relative',
+                            border: selectedFiles.includes(file._id) ? '2px solid var(--accent-color)' : '1px solid var(--border-color)',
+                            background: selectedFiles.includes(file._id) ? 'rgba(99, 102, 241, 0.1)' : 'var(--secondary-bg)',
+                            transition: 'all 0.1s ease',
+                            cursor: 'pointer'
+                          }}
+                          onClick={(e) => handleFileSelection(e, file._id)}
+                        >
+                          <div
                             style={{
                               position: 'absolute',
                               top: '8px',
@@ -667,18 +673,18 @@ function App() {
                           </div>
                           {file.type.startsWith('image/') ? (
                             <div style={{ position: 'relative' }}>
-                              <img 
-                                src={`data:${file.type};base64,${file.data}`} 
-                                alt={file.name} 
-                                style={{ 
-                                  width: '100%', 
-                                  height: '160px', 
-                                  objectFit: 'cover', 
-                                  cursor: 'pointer', 
+                              <img
+                                src={`data:${file.type};base64,${file.data}`}
+                                alt={file.name}
+                                style={{
+                                  width: '100%',
+                                  height: '160px',
+                                  objectFit: 'cover',
+                                  cursor: 'pointer',
                                   borderRadius: '8px 8px 0 0',
                                   transition: 'transform 0.2s ease',
-                                  opacity: selectedFiles.includes(file._id) ? 0.7 : 1
-                                }} 
+                                  opacity: 1
+                                }}
                                 onClick={() => setLightbox(file)}
                                 onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                                 onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -697,16 +703,16 @@ function App() {
                               </div>
                             </div>
                           ) : (
-                            <div style={{ 
-                              height: '160px', 
-                              background: 'linear-gradient(135deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%)', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center', 
-                              fontSize: '48px', 
+                            <div style={{
+                              height: '160px',
+                              background: 'linear-gradient(135deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '48px',
                               borderRadius: '8px 8px 0 0',
                               position: 'relative',
-                              opacity: selectedFiles.includes(file._id) ? 0.7 : 1
+                              opacity: 1
                             }}>
                               📄
                               <div style={{
@@ -724,51 +730,38 @@ function App() {
                             </div>
                           )}
                           <div style={{ padding: '16px' }}>
-                            <div style={{ 
-                              fontSize: '14px', 
+                            <div style={{
+                              fontSize: '14px',
                               fontWeight: '500',
                               marginBottom: '8px',
                               wordBreak: 'break-word'
                             }}>
                               {file.name}
                             </div>
-                            <div style={{ 
-                              fontSize: '12px', 
+                            <div style={{
+                              fontSize: '12px',
                               color: 'var(--text-secondary)',
                               marginBottom: '12px'
                             }}>
                               <div>📊 {(file.size / 1024).toFixed(1)} KB</div>
                               <div>🕒 {new Date(file.added).toLocaleString()}</div>
                             </div>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button 
-                                className="btn btn-sm btn-secondary"
-                                onClick={() => downloadFile(file)}
-                              >
-                                ⬇️ Download
-                              </button>
-                              <button 
-                                className="btn btn-sm btn-danger"
-                                onClick={() => deleteFile(file._id)}
-                              >
-                                🗑️ Delete
-                              </button>
-                            </div>
+                            {/* Inline buttons removed */}
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
-                
+
                 {canUpload && (
-                  <div 
+                  <div
                     className="card"
-                    style={{ 
-                      border: '2px dashed var(--accent-color)', 
-                      padding: '48px', 
-                      textAlign: 'center', 
-                      marginTop: '32px', 
+                    style={{
+                      border: '2px dashed var(--accent-color)',
+                      padding: '48px',
+                      textAlign: 'center',
+                      marginTop: '32px',
                       background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(99, 102, 241, 0.1) 100%)',
                       cursor: 'pointer',
                       transition: 'all 0.3s ease'
@@ -796,16 +789,16 @@ function App() {
                     <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
                       or click to browse
                     </div>
-                    <input 
-                      type="file" 
-                      multiple 
-                      onChange={(e) => handleFiles(e.target.files!)} 
-                      style={{ 
-                        display: 'none',
-                        id: 'file-input'
-                      }} 
+                    <input
+                      type="file"
+                      multiple
+                      id="file-input"
+                      onChange={(e) => handleFiles(e.target.files!)}
+                      style={{
+                        display: 'none'
+                      }}
                     />
-                    <label 
+                    <label
                       htmlFor="file-input"
                       className="btn"
                       style={{ cursor: 'pointer' }}
@@ -819,12 +812,12 @@ function App() {
                 )}
               </>
             ) : (
-              <div style={{ 
+              <div style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginTop: '100px', 
+                marginTop: '100px',
                 fontSize: '18px',
                 color: 'var(--text-secondary)'
               }}>
@@ -834,90 +827,223 @@ function App() {
               </div>
             )}
           </div>
-        </div>
-      )}
-      {lightbox && (
-        <div 
-          className="fade-in"
-          style={{ 
-            position: 'fixed', 
-            top: 0, 
-            left: 0, 
-            width: '100%', 
-            height: '100%', 
-            background: 'rgba(0,0,0,0.95)', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            zIndex: 1000,
-            cursor: 'pointer'
-          }} 
-          onClick={() => setLightbox(null)}
-        >
-          <div style={{ 
-            position: 'relative',
-            maxWidth: '90%', 
-            maxHeight: '90%', 
-            borderRadius: '12px',
-            overflow: 'hidden',
-            boxShadow: 'var(--shadow)'
-          }}>
-            <img 
-              src={`data:${lightbox.type};base64,${lightbox.data}`} 
-              alt={lightbox.name} 
-              style={{ 
-                width: '100%', 
-                height: '100%', 
-                objectFit: 'contain', 
-                display: 'block'
-              }} 
-              onClick={(e) => e.stopPropagation()}
-            />
+
+          <div className="ai-sidebar">
             <div style={{
-              position: 'absolute',
-              bottom: '0',
-              left: '0',
-              right: '0',
-              background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)',
-              color: 'white',
-              padding: '20px',
-              textAlign: 'center'
+              padding: '20px 16px',
+              borderBottom: '1px solid var(--border-color)',
+              fontWeight: '700',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: 'rgba(255,255,255,0.03)'
             }}>
-              <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px' }}>
-                {lightbox.name}
-              </div>
-              <div style={{ fontSize: '12px', opacity: 0.8 }}>
-                {(lightbox.size / 1024).toFixed(1)} KB • {new Date(lightbox.added).toLocaleString()}
-              </div>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '20px' }}>🤖</span> Lab-Bot Assistant
+              </span>
+              {chatHistory.length > 0 && (
+                <button
+                  className="btn btn-sm btn-secondary"
+                  onClick={() => setChatHistory([])}
+                  style={{ padding: '4px 10px', fontSize: '11px' }}
+                >
+                  Clear Chat
+                </button>
+              )}
             </div>
-            <button
-              className="btn btn-danger"
-              style={{
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                borderRadius: '50%',
-                width: '40px',
-                height: '40px',
-                padding: '0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setLightbox(null);
-              }}
-            >
-              ✕
-            </button>
+            <div className="chat-container">
+              {chatHistory.length === 0 && (
+                <div style={{
+                  color: 'var(--text-secondary)',
+                  textAlign: 'center',
+                  marginTop: '60px',
+                  padding: '0 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  alignItems: 'center'
+                }}>
+                  <div style={{ fontSize: '48px', opacity: 0.5 }}>🧪</div>
+                  <div style={{ fontWeight: '500', color: 'var(--text-color)' }}>Welcome to Lab-Bot!</div>
+                  <div style={{ fontSize: '13px' }}>
+                    I can help you analyze your screenshots, generate code snippets, or organize your lab categories.
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginTop: '12px' }}>
+                    {['Explain my files', 'How to organize?', 'Write React code'].map(suggestion => (
+                      <button
+                        key={suggestion}
+                        className="btn btn-sm btn-secondary"
+                        style={{ fontSize: '11px', borderRadius: '20px' }}
+                        onClick={() => { setChatMessage(suggestion); }}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {chatHistory.map((msg, i) => (
+                <div key={i} className={`chat-message ${msg.role === 'user' ? 'user-message' : 'bot-message'}`}>
+                  {msg.role === 'assistant' ? (
+                    <div
+                      className="markdown-content"
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(msg.content) as string) }}
+                    />
+                  ) : (
+                    <div style={{ fontWeight: '500' }}>{msg.content}</div>
+                  )}
+                </div>
+              ))}
+              {isTyping && (
+                <div className="chat-message bot-message" style={{ display: 'flex', gap: '4px', padding: '12px' }}>
+                  <div className="loading" style={{ width: '12px', height: '12px', borderWidth: '2px' }}></div>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Lab-Bot is thinking...</span>
+                </div>
+              )}
+            </div>
+            <div className="chat-input-area">
+              {!selectedUser && (
+                <div style={{
+                  fontSize: '11px',
+                  color: 'var(--danger-color)',
+                  textAlign: 'center',
+                  marginBottom: '8px',
+                  padding: '8px',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  borderRadius: '6px'
+                }}>
+                  ⚠️ Select a user to start chatting
+                </div>
+              )}
+              <textarea
+                className="chat-input"
+                placeholder={selectedUser ? "Ask Lab-Bot something..." : "Select a user first..."}
+                value={chatMessage}
+                disabled={!selectedUser || isTyping}
+                onChange={(e) => setChatMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleChat();
+                  }
+                }}
+                style={{
+                  minHeight: '80px',
+                  border: '1px solid var(--border-color)',
+                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
+                }}
+              />
+              <button
+                className="btn"
+                style={{ width: '100%', justifyContent: 'center', marginTop: '4px' }}
+                onClick={handleChat}
+                disabled={!selectedUser || isTyping || !chatMessage.trim()}
+              >
+                {isTyping ? 'Sending...' : 'Send Message'}
+              </button>
+            </div>
           </div>
         </div>
-      )}
-      {contextMenu && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 999 }} onClick={() => setContextMenu(null)}></div>
-      )}
-    </div>
+      )
+      }
+      {
+        lightbox && (
+          <div
+            className="fade-in"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              background: 'rgba(0,0,0,0.95)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              cursor: 'pointer'
+            }}
+            onClick={() => setLightbox(null)}
+          >
+            <div style={{
+              position: 'relative',
+              maxWidth: '90%',
+              maxHeight: '90%',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              boxShadow: 'var(--shadow)'
+            }}>
+              <img
+                src={`data:${lightbox.type};base64,${lightbox.data}`}
+                alt={lightbox.name}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  display: 'block'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <div style={{
+                position: 'absolute',
+                bottom: '0',
+                left: '0',
+                right: '0',
+                background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)',
+                color: 'white',
+                padding: '20px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px' }}>
+                  {lightbox.name}
+                </div>
+                <div style={{ fontSize: '12px', opacity: 0.8 }}>
+                  {(lightbox.size / 1024).toFixed(1)} KB • {new Date(lightbox.added).toLocaleString()}
+                </div>
+              </div>
+              <button
+                className="btn btn-danger"
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  borderRadius: '50%',
+                  width: '40px',
+                  height: '40px',
+                  padding: '0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightbox(null);
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )
+      }
+      {/* Selection Rectangle Overlay */}
+      {
+        isSelecting && selectionStart && selectionEnd && (
+          <div style={{
+            position: 'fixed',
+            left: Math.min(selectionStart.x, selectionEnd.x),
+            top: Math.min(selectionStart.y, selectionEnd.y),
+            width: Math.abs(selectionStart.x - selectionEnd.x),
+            height: Math.abs(selectionStart.y - selectionEnd.y),
+            backgroundColor: 'rgba(99, 102, 241, 0.2)',
+            border: '1px solid var(--accent-color)',
+            pointerEvents: 'none',
+            zIndex: 10000,
+            borderRadius: '2px'
+          }} />
+        )
+      }
+    </div >
   );
 }
 
