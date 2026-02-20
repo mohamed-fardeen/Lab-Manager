@@ -354,7 +354,7 @@ function App() {
     if (!selectedFolder) return;
     if (confirm('Delete file?')) {
       try {
-        await fetch(`/ api / files / ${fileId} `, { method: 'DELETE' });
+        await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
         loadFiles(selectedFolder); // Refresh files
       } catch (error) {
         console.error('Error deleting file:', error);
@@ -364,7 +364,7 @@ function App() {
 
   function downloadFile(file: FileItem) {
     const link = document.createElement('a');
-    link.href = `data:${file.type}; base64, ${file.data} `;
+    link.href = `data:${file.type};base64,${file.data}`;
     link.download = file.name;
     link.click();
   }
@@ -588,12 +588,20 @@ function App() {
             {selectedUser ? (
               <>
                 {selectedFolder && (
-                  <div style={{ marginBottom: '20px' }}>
+                  <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <button
                       className="btn btn-secondary"
                       onClick={() => setSelectedFolder(null)}
                     >
                       ← Back to Folders
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      title="Refresh files"
+                      onClick={() => { if (selectedFolder) loadFiles(selectedFolder); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      🔄 Refresh
                     </button>
                   </div>
                 )}
@@ -607,9 +615,21 @@ function App() {
                       color: 'var(--text-color)',
                       display: 'flex',
                       alignItems: 'center',
+                      justifyContent: 'space-between',
                       gap: '8px'
                     }}>
-                      📁 {selectedFolder ? 'Subfolders' : 'Lab Categories'}
+                      <span>📁 {selectedFolder ? 'Subfolders' : 'Lab Categories'}</span>
+                      <button
+                        className="btn btn-secondary"
+                        title="Refresh folders"
+                        onClick={() => {
+                          if (selectedUser) loadFolders(selectedUser);
+                          if (selectedFolder) loadFiles(selectedFolder);
+                        }}
+                        style={{ fontSize: '13px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        🔄 Refresh
+                      </button>
                     </h2>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
                       {currentFolders.map(folder => (
@@ -700,12 +720,15 @@ function App() {
                           </button>
                           <button
                             className="btn btn-sm btn-danger"
-                            onClick={() => {
+                            onClick={async () => {
                               if (confirm(`Delete ${selectedFiles.length} selected files?`)) {
-                                selectedFiles.forEach(fileId => {
-                                  deleteFile(fileId);
-                                });
+                                await Promise.all(
+                                  selectedFiles.map(fileId =>
+                                    fetch(`/api/files/${fileId}`, { method: 'DELETE' })
+                                  )
+                                );
                                 setSelectedFiles([]);
+                                if (selectedFolder) loadFiles(selectedFolder);
                               }
                             }}
                           >

@@ -190,54 +190,107 @@ app.post('/api/files/ai-create', async (req, res) => {
     const { userId, filename, content, folderName, preferredFolderId } = req.body;
 
     if (!userId || !filename || !folderName) {
-      console.error('Missing required fields for AI file creation');
       return res.status(400).json({ error: 'Missing userId, filename, or folderName' });
     }
 
-    let folder = null;
+    // ── STEP 1: Determine canonical subfolder name based on file type ──────────
+    const ext = (filename.split('.').pop() || '').toLowerCase();
+    const CODE_EXTS = ['py', 'js', 'ts', 'c', 'cpp', 'java', 'html', 'css', 'sh', 'sql', 'rb', 'go', 'rs', 'php', 'swift', 'kt', 'r', 'm'];
+    const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp'];
 
-    // 1. Try to use the preferred folder if it matches the name
-    if (preferredFolderId && ObjectId.isValid(preferredFolderId)) {
-      const prefFolder = await db.collection('folders').findOne({ _id: new ObjectId(preferredFolderId), userId });
-      if (prefFolder && prefFolder.name.toLowerCase() === folderName.toLowerCase()) {
-        folder = prefFolder;
-        console.log(`Using preferred folder: ${folder.name} (${folder._id})`);
+    let canonicalSubfolder;
+    if (CODE_EXTS.includes(ext)) {
+      canonicalSubfolder = 'Program';
+    } else if (IMAGE_EXTS.includes(ext)) {
+      canonicalSubfolder = 'Screenshots';
+    } else {
+      canonicalSubfolder = 'Other as Screenshots';
+    }
+    // Also accept the AI's folder hint if it maps to a known subfolder type
+    const hintLower = (folderName || '').toLowerCase();
+    if (hintLower.includes('program') || hintLower.includes('code')) canonicalSubfolder = 'Program';
+    else if (hintLower.includes('screenshot')) canonicalSubfolder = 'Screenshots';
+    else if (hintLower.includes('other')) canonicalSubfolder = 'Other as Screenshots';
+    console.log(`Canonical subfolder: "${canonicalSubfolder}" (file: ${filename})`);
+
+    // ── STEP 2: Determine parent category ──────────────────────────────────────
+    // Walk from the preferred folder up to the root category
+    let parentCategoryId = null;
+    if (preferredFolderId) {
+      const prefFolder = await db.collection('folders').findOne({ _id: ObjectId.isValid(preferredFolderId) ? new ObjectId(preferredFolderId) : null, userId });
+      if (prefFolder) {
+        if (!prefFolder.parentId) {
+          parentCategoryId = prefFolder._id.toString(); // it IS a root category
+        } else {
+          parentCategoryId = prefFolder.parentId.toString(); // go up one level
+        }
       }
     }
 
-    // 1.5 Try to find a subfolder of the preferred folder that matches the name
-    if (!folder && preferredFolderId) {
+    // ── STEP 3: Find the right subfolder under that parent ────────────────────
+    let folder = null;
+    if (parentCategoryId) {
       folder = await db.collection('folders').findOne({
-        parentId: preferredFolderId.toString(),
+        parentId: parentCategoryId,
         userId,
-        name: { $regex: new RegExp(`^${folderName}$`, 'i') }
+        name: { $regex: new RegExp(`^${canonicalSubfolder}$`, 'i') }
       });
-      if (folder) console.log(`Found matching subfolder: ${folder.name} (${folder._id}) from preferred parent`);
+      if (folder) console.log(`Found subfolder: ${folder.name} (${folder._id}) under parent ${parentCategoryId}`);
     }
 
-    // 2. Search for existing folder by name for this user
+    // ── STEP 4: Fallback — find ANY subfolder with that name for this user ─────
     if (!folder) {
       folder = await db.collection('folders').findOne({
         userId,
-        name: { $regex: new RegExp(`^${folderName}$`, 'i') }
+        parentId: { $exists: true },
+        name: { $regex: new RegExp(`^${canonicalSubfolder}$`, 'i') }
       });
-      if (folder) console.log(`Found existing folder by name: ${folder.name} (${folder._id})`);
+      if (folder) console.log(`Fallback: found subfolder ${folder.name} (${folder._id})`);
     }
 
-    // 3. Create new folder if still not found
+    // ── STEP 5: Create the subfolder if it truly doesn't exist ────────────────
     if (!folder) {
-      console.log(`Creating new folder: ${folderName}`);
+      // Find the best parent category
+      const CATEGORY_KEYWORDS = {
+        'Algorithmic Design': ['algorithm', 'sort', 'search', 'tree', 'graph', 'binary', 'stack', 'queue', 'heap', 'dynamic', 'logic'],
+        'Network Methodologies': ['network', 'socket', 'tcp', 'udp', 'http', 'protocol', 'client', 'server', 'packet', 'routing'],
+        'Data Mining': ['data', 'csv', 'mining', 'database', 'sql', 'analysis', 'statistic', 'regression', 'cluster', 'pandas']
+      };
+      let bestParent = null;
+      const fnameLower = filename.toLowerCase();
+      for (const [catName, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+        if (keywords.some(k => fnameLower.includes(k))) {
+          bestParent = await db.collection('folders').findOne({ userId, name: { $regex: new RegExp(`^${catName}$`, 'i') }, parentId: { $exists: false } });
+          if (bestParent) break;
+        }
+      }
+      if (!bestParent) {
+        // Default: Algorithmic Design
+        bestParent = await db.collection('folders').findOne({ userId, parentId: { $exists: false } });
+      }
+      console.log(`Creating subfolder "${canonicalSubfolder}" under parent: ${bestParent ? bestParent.name : 'unknown'}`);
       const folderResult = await db.collection('folders').insertOne({
-        name: folderName,
+        name: canonicalSubfolder,
         userId,
+        parentId: bestParent ? bestParent._id.toString() : null,
         created: Date.now()
       });
-      folder = { _id: folderResult.insertedId, name: folderName };
+      folder = { _id: folderResult.insertedId, name: canonicalSubfolder };
     }
+
+    // ── STEP 6: Determine MIME type from extension ────────────────────────────
+    const mimeMap = {
+      py: 'text/x-python', js: 'text/javascript', ts: 'text/typescript',
+      html: 'text/html', css: 'text/css', c: 'text/x-c', cpp: 'text/x-c++',
+      java: 'text/x-java', sh: 'text/x-sh', sql: 'text/x-sql',
+      txt: 'text/plain', md: 'text/markdown', json: 'application/json',
+      png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', svg: 'image/svg+xml'
+    };
+    const mimeType = mimeMap[ext] || 'text/plain';
 
     const file = {
       name: filename,
-      type: 'text/plain', // Default to plain text, frontend/extension can refine
+      type: mimeType,
       size: content.length,
       data: Buffer.from(content).toString('base64'),
       added: Date.now(),
@@ -245,8 +298,10 @@ app.post('/api/files/ai-create', async (req, res) => {
     };
 
     const result = await db.collection('files').insertOne(file);
-    res.json({ success: true, fileId: result.insertedId, folderId: folder._id.toString() });
+    console.log(`File saved: ${filename} → folderId: ${folder._id}`);
+    res.json({ success: true, fileId: result.insertedId, folderId: folder._id.toString(), subfolderUsed: folder.name });
   } catch (error) {
+    console.error('ai-create error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -293,34 +348,44 @@ app.post('/api/ai/chat', async (req, res) => {
       }
     }
 
-    const activeFolder = folderId ? folders.find(f => f._id.toString() === folderId) : null;
+    const activeCategory = folderId ?
+      folders.find(f => f._id.toString() === folderId && !f.parentId) ||
+      (() => { const sub = folders.find(f => f._id.toString() === folderId && f.parentId); return sub ? folders.find(f => f._id.toString() === sub.parentId) : null; })()
+      : null;
 
     const systemPrompt = `You are "Lab-Bot", the Master System Controller for the Lab Manager Workspace.
     
-    ### ⚡ MANDATORY PROTOCOL: SYSTEM WRITE CAPABILITY ⚡
-    1. STATUS: You ARE connected to the filesystem. 
-    2. CAPABILITY: You HAVE the power to create, save, and organize files.
-    3. FORBIDDEN: NEVER say "I am a language model" or "I cannot create files".
-    4. ACTION: When code or content is requested, YOU MUST AUTOMATICALLY SAVE IT using the tag below.
-
-    #### 🛠️ FILE CREATION SYNTAX (REQUIRED):
-    <create_file filename="script.py" folder="${activeFolder ? activeFolder.name : 'Folder Name'}">
-    (content here)
+    ### ⚡ MANDATORY PROTOCOL: FILE SAVING ⚡
+    When the user asks you to create a file, code, or content, you MUST save it using this exact XML tag:
+    <create_file filename="script.py" folder="Program">
+    (file content here)
     </create_file>
 
-    #### 📂 SMART ORGANIZATION:
-    - **PRIORITY 1:** If the user is viewing a folder (see "Active Category" below), SAVE FILES THERE by default.
-    - **PRIORITY 2:** Check "Existing Categories" below. If one matches the scope, use it.
-    - **PRIORITY 3:** If no folder fits, create a logical one.
+    ### 📂 FILE ROUTING RULES (STRICT — always follow these):
+    
+    **RULE 1 — File Type determines the subfolder:**
+    - CODE files (.py, .js, .ts, .c, .cpp, .java, .html, .css, .sh, .sql, any script) → folder="Program"
+    - IMAGE files (.png, .jpg, .jpeg, .gif, .bmp, .svg) → folder="Screenshots"
+    - ALL OTHER files (documents, .pdf, .txt, .md, .docx, notes, reports) → folder="Other as Screenshots"
 
+    **RULE 2 — Subject determines the PARENT category:**
+    - Algorithms, sorting, searching, data structures, logic → parent: "Algorithmic Design"
+    - Networks, protocols, sockets, TCP/IP, HTTP, networking → parent: "Network Methodologies"
+    - Data, databases, mining, CSV, analysis, statistics → parent: "Data Mining"
+    - When unsure, default to the active category shown below.
+
+    **EXAMPLE:** A Python binary search program → <create_file filename="binary_search.py" folder="Program">
+
+    **RULE 3 — NEVER create a file at the root category level. ALWAYS use a subfolder.**
+    
     #### 💬 CONVERSATION STYLE:
-    - Act like a high-level system interface.
-    - Confirm the save: "System Update: File 'name.ext' has been locked into the '${activeFolder ? activeFolder.name : 'Folder'}' category."
+    - Confirm each save: "✅ Saved \`filename\` → [Parent Category] / [Subfolder]"
 
     [WORKSPACE STATE]
     User: ${user ? user.name : 'Guest'}
-    Active Category: ${activeFolder ? activeFolder.name : 'None (Root View)'}
-    Existing Categories: ${folders.filter(f => !f.parentId).map(f => f.name).join(', ') || 'None'}
+    Active Category: ${activeCategory ? activeCategory.name : (activeFolder ? activeFolder.name : 'None')}
+    All Categories: ${folders.filter(f => !f.parentId).map(f => f.name).join(', ') || 'None'}
+    Subfolders: ${folders.filter(f => f.parentId).map(f => f.name).join(', ') || 'None'}
     Current Files: ${files.map(f => f.name).join(', ')}
     `;
 
