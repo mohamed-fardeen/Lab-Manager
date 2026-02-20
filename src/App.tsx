@@ -410,73 +410,78 @@ function App() {
                   minWidth: '160px',
                   borderRadius: '8px',
                   boxShadow: 'var(--shadow)'
-                }} 
-                onClick={() => setContextMenu(null)}
+                }}
               >
                 {contextMenu.userId ? (
                   // User context menu
                   <>
-                    <div 
+                    <button 
+                      className="btn btn-secondary"
+                      style={{ 
+                        width: '100%',
+                        justifyContent: 'flex-start',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '0',
+                        padding: '10px 16px',
+                        textAlign: 'left'
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         renameUser(contextMenu.userId!, users.find(u => u._id === contextMenu.userId)?.name || '');
                         setContextMenu(null);
                       }}
-                      style={{ 
-                        cursor: 'pointer',
-                        padding: '10px 16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        transition: 'background 0.2s ease'
-                      }}
                       onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-color)'}
                       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                     >
                       ✏️ Rename User
-                    </div>
-                    <div 
+                    </button>
+                    <button 
+                      className="btn btn-danger"
+                      style={{ 
+                        width: '100%',
+                        justifyContent: 'flex-start',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '0',
+                        borderTop: '1px solid var(--border-color)',
+                        padding: '10px 16px',
+                        textAlign: 'left'
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteUser(contextMenu.userId!);
                         setContextMenu(null);
                       }}
-                      style={{ 
-                        cursor: 'pointer',
-                        padding: '10px 16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        transition: 'background 0.2s ease',
-                        borderTop: '1px solid var(--border-color)'
-                      }}
                       onMouseEnter={(e) => e.currentTarget.style.background = 'var(--danger-color)'}
                       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                     >
                       🗑️ Delete User
-                    </div>
+                    </button>
                   </>
                 ) : (
                   // Sidebar context menu
-                  <div 
+                  <button 
+                    className="btn btn-secondary"
+                    style={{ 
+                      width: '100%',
+                      justifyContent: 'flex-start',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '0',
+                      padding: '10px 16px',
+                      textAlign: 'left'
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       addUser();
                       setContextMenu(null);
                     }}
-                    style={{ 
-                      cursor: 'pointer',
-                      padding: '10px 16px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      transition: 'background 0.2s ease'
-                    }}
                     onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-color)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
                     ➕ Add User
-                  </div>
+                  </button>
                 )}
               </div>
             )}
