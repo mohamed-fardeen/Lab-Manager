@@ -31,7 +31,27 @@ async function connectDB() {
   }
 }
 
-connectDB();
+// Data Migration / Type Unification on startup
+async function unifyDataTypes() {
+  try {
+    const files = await db.collection('files').find({}).toArray();
+    let updatedCount = 0;
+    for (const file of files) {
+      if (file.folderId && typeof file.folderId !== 'string') {
+        await db.collection('files').updateOne(
+          { _id: file._id },
+          { $set: { folderId: file.folderId.toString() } }
+        );
+        updatedCount++;
+      }
+    }
+    if (updatedCount > 0) console.log(`Data Unification: normalized ${updatedCount} folderId fields to strings.`);
+  } catch (error) {
+    console.error('Data Unification Error:', error);
+  }
+}
+
+connectDB().then(unifyDataTypes);
 
 const db = client.db('lab_manager');
 
@@ -130,6 +150,10 @@ app.get('/api/files/:folderId', async (req, res) => {
 app.post('/api/files', async (req, res) => {
   try {
     const file = req.body;
+    // Ensure folderId is always a string for AI/UI consistency
+    if (file.folderId && typeof file.folderId !== 'string') {
+      file.folderId = file.folderId.toString();
+    }
     const result = await db.collection('files').insertOne(file);
     res.json(result);
   } catch (error) {
@@ -149,20 +173,36 @@ app.delete('/api/files/:id', async (req, res) => {
 app.post('/api/files/ai-create', async (req, res) => {
   console.log('AI-Create Request Received:', req.body);
   try {
-    const { userId, filename, content, folderName } = req.body;
+    const { userId, filename, content, folderName, preferredFolderId } = req.body;
 
     if (!userId || !filename || !folderName) {
       console.error('Missing required fields for AI file creation');
       return res.status(400).json({ error: 'Missing userId, filename, or folderName' });
     }
 
-    // Find or create the folder (case-insensitive search)
-    let folder = await db.collection('folders').findOne({
-      userId,
-      name: { $regex: new RegExp(`^${folderName}$`, 'i') }
-    });
+    let folder = null;
 
+    // 1. Try to use the preferred folder if it matches the name
+    if (preferredFolderId && ObjectId.isValid(preferredFolderId)) {
+      const prefFolder = await db.collection('folders').findOne({ _id: new ObjectId(preferredFolderId), userId });
+      if (prefFolder && prefFolder.name.toLowerCase() === folderName.toLowerCase()) {
+        folder = prefFolder;
+        console.log(`Using preferred folder: ${folder.name} (${folder._id})`);
+      }
+    }
+
+    // 2. Search for existing folder by name for this user
     if (!folder) {
+      folder = await db.collection('folders').findOne({
+        userId,
+        name: { $regex: new RegExp(`^${folderName}$`, 'i') }
+      });
+      if (folder) console.log(`Found existing folder by name: ${folder.name} (${folder._id})`);
+    }
+
+    // 3. Create new folder if still not found
+    if (!folder) {
+      console.log(`Creating new folder: ${folderName}`);
       const folderResult = await db.collection('folders').insertOne({
         name: folderName,
         userId,
@@ -181,7 +221,7 @@ app.post('/api/files/ai-create', async (req, res) => {
     };
 
     const result = await db.collection('files').insertOne(file);
-    res.json({ success: true, fileId: result.insertedId, folderId: folder._id });
+    res.json({ success: true, fileId: result.insertedId, folderId: folder._id.toString() });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -229,6 +269,8 @@ app.post('/api/ai/chat', async (req, res) => {
       }
     }
 
+    const activeFolder = folderId ? folders.find(f => f._id.toString() === folderId) : null;
+
     const systemPrompt = `You are "Lab-Bot", the Master System Controller for the Lab Manager Workspace.
     
     ### ⚡ MANDATORY PROTOCOL: SYSTEM WRITE CAPABILITY ⚡
@@ -238,21 +280,22 @@ app.post('/api/ai/chat', async (req, res) => {
     4. ACTION: When code or content is requested, YOU MUST AUTOMATICALLY SAVE IT using the tag below.
 
     #### 🛠️ FILE CREATION SYNTAX (REQUIRED):
-    <create_file filename="script.py" folder="Folder Name">
+    <create_file filename="script.py" folder="${activeFolder ? activeFolder.name : 'Folder Name'}">
     (content here)
     </create_file>
 
     #### 📂 SMART ORGANIZATION:
-    - ALWAYS check "Existing Categories" below. If one matches the scope, use it.
-    - If no folder exists, invent a logical one (e.g., "Research", "Development", "Logic").
-    - Use "Programs" for code, "Documents" for text, "Data" for CSV only if no better folder exists.
+    - **PRIORITY 1:** If the user is viewing a folder (see "Active Category" below), SAVE FILES THERE by default.
+    - **PRIORITY 2:** Check "Existing Categories" below. If one matches the scope, use it.
+    - **PRIORITY 3:** If no folder fits, create a logical one.
 
     #### 💬 CONVERSATION STYLE:
     - Act like a high-level system interface.
-    - Confirm the save: "System Update: File 'name.ext' has been locked into the 'Folder' category."
+    - Confirm the save: "System Update: File 'name.ext' has been locked into the '${activeFolder ? activeFolder.name : 'Folder'}' category."
 
     [WORKSPACE STATE]
     User: ${user ? user.name : 'Guest'}
+    Active Category: ${activeFolder ? activeFolder.name : 'None (Root View)'}
     Existing Categories: ${folders.filter(f => !f.parentId).map(f => f.name).join(', ') || 'None'}
     Current Files: ${files.map(f => f.name).join(', ')}
     `;

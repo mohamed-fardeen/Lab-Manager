@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
+import React, { useState, useEffect, useRef } from 'react';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 interface User {
   _id: string;
@@ -46,10 +46,15 @@ function App() {
     loadUsers();
   }, []);
 
+  // Fix: Only reset folder if the user actually CHANGED
+  const lastUserId = useRef<string | null>(null);
   useEffect(() => {
     if (selectedUser) {
       loadFolders(selectedUser);
-      setSelectedFolder(null);
+      if (selectedUser !== lastUserId.current) {
+        setSelectedFolder(null);
+        lastUserId.current = selectedUser;
+      }
     }
   }, [selectedUser]);
 
@@ -119,8 +124,10 @@ function App() {
 
   async function loadFiles(folderId: string) {
     try {
+      console.log(`Fetching files for folder: ${folderId}`);
       const response = await fetch(`/api/files/${folderId}`);
       const data = await response.json();
+      console.log(`Loaded ${data.length} files from server.`);
       setFiles(data);
     } catch (error) {
       console.error('Error loading files:', error);
@@ -174,31 +181,31 @@ function App() {
     if (confirm('Delete user and all their data?')) {
       try {
         // Get all folders for this user
-        const foldersResponse = await fetch(`/api/folders/${userId}`);
+        const foldersResponse = await fetch(`/ api / folders / ${userId} `);
         const userFolders = await foldersResponse.json();
 
         // Delete all files and folders for this user
         for (const folder of userFolders) {
           // Delete all files in this folder
-          const filesResponse = await fetch(`/api/files/${folder._id}`);
+          const filesResponse = await fetch(`/ api / files / ${folder._id} `);
           const files = await filesResponse.json();
           for (const file of files) {
-            const deleteFileResponse = await fetch(`/api/files/${file._id}`, { method: 'DELETE' });
+            const deleteFileResponse = await fetch(`/ api / files / ${file._id} `, { method: 'DELETE' });
             if (!deleteFileResponse.ok) {
               console.error('Failed to delete file:', file._id);
             }
           }
           // Delete the folder
-          const deleteFolderResponse = await fetch(`/api/folders/${folder._id}`, { method: 'DELETE' });
+          const deleteFolderResponse = await fetch(`/ api / folders / ${folder._id} `, { method: 'DELETE' });
           if (!deleteFolderResponse.ok) {
             console.error('Failed to delete folder:', folder._id);
           }
         }
 
         // Delete the user
-        const deleteUserResponse = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+        const deleteUserResponse = await fetch(`/ api / users / ${userId} `, { method: 'DELETE' });
         if (!deleteUserResponse.ok) {
-          throw new Error(`Failed to delete user: ${deleteUserResponse.status}`);
+          throw new Error(`Failed to delete user: ${deleteUserResponse.status} `);
         }
 
         // Refresh UI
@@ -226,8 +233,11 @@ function App() {
 
   function getCurrentFiles() {
     if (!selectedFolder) return [];
-    // Ensure we only show files belonging to the active folder
-    return files.filter(f => String(f.folderId) === String(selectedFolder));
+    const filtered = files.filter(f => {
+      const match = String(f.folderId).trim() === String(selectedFolder).trim();
+      return match;
+    });
+    return filtered;
   }
 
   function handleFolderClick(folderId: string) {
@@ -344,7 +354,7 @@ function App() {
     if (!selectedFolder) return;
     if (confirm('Delete file?')) {
       try {
-        await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
+        await fetch(`/ api / files / ${fileId} `, { method: 'DELETE' });
         loadFiles(selectedFolder); // Refresh files
       } catch (error) {
         console.error('Error deleting file:', error);
@@ -354,7 +364,7 @@ function App() {
 
   function downloadFile(file: FileItem) {
     const link = document.createElement('a');
-    link.href = `data:${file.type};base64,${file.data}`;
+    link.href = `data:${file.type}; base64, ${file.data} `;
     link.download = file.name;
     link.click();
   }
@@ -390,7 +400,7 @@ function App() {
 
       for (const match of fileCreationMatch) {
         const [_, filename, folderName, content] = match;
-        console.log(`Processing AI file request: ${filename} in ${folderName}`);
+        console.log(`Processing AI file request: ${filename} in ${folderName} `);
         try {
           const res = await fetch('/api/files/ai-create', {
             method: 'POST',
@@ -399,7 +409,8 @@ function App() {
               userId: selectedUser,
               filename,
               content: content.trim(),
-              folderName
+              folderName,
+              preferredFolderId: selectedFolder
             })
           });
 
@@ -546,7 +557,7 @@ function App() {
                     transition: 'all 0.2s ease',
                     position: 'relative'
                   }}
-                  onClick={() => { setSelectedUser(user._id); setSelectedFolder(null); }}
+                  onClick={() => { setSelectedUser(user._id.toString()); setSelectedFolder(null); }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{
@@ -610,7 +621,7 @@ function App() {
                             position: 'relative',
                             overflow: 'hidden'
                           }}
-                          onClick={() => handleFolderClick(folder._id)}
+                          onClick={() => handleFolderClick(folder._id.toString())}
                         >
                           <div style={{
                             display: 'flex',
