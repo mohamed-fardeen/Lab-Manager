@@ -8,18 +8,9 @@ async function debug() {
         await client.connect();
         const db = client.db('lab_manager');
 
-        const fardeen = await db.collection('users').findOne({ name: 'Fardeen' });
-        const userId = fardeen._id.toString();
-
-        console.log(`--- FOLDER AUDIT FOR FARDEEN ---`);
-        const folders = await db.collection('folders').find({ userId: userId, name: /Algorithmic Design/i }).toArray();
-
-        for (const folder of folders) {
-            const files = await db.collection('files').find({
-                $or: [{ folderId: String(folder._id) }, { folderId: folder._id }]
-            }).toArray();
-            console.log(`Folder: [${folder.name}] | ID: [${folder._id}] | Files: ${files.length}`);
-            files.forEach(f => console.log(`  - ${f.name}`));
+        const folder = await db.collection('folders').findOne({ name: 'Program' });
+        if (folder) {
+            console.log(`Folder [${folder.name}] has parentId: [${folder.parentId}] | Type: ${typeof folder.parentId}`);
         }
 
     } finally {

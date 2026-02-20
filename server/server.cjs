@@ -45,7 +45,21 @@ async function unifyDataTypes() {
         updatedCount++;
       }
     }
-    if (updatedCount > 0) console.log(`Data Unification: normalized ${updatedCount} folderId fields to strings.`);
+    if (updatedCount > 0) console.log(`Data Unification: normalized ${updatedCount} file folderId fields to strings.`);
+
+    // Normalize folders parentId
+    const folders = await db.collection('folders').find({}).toArray();
+    let folderUpdates = 0;
+    for (const folder of folders) {
+      if (folder.parentId && typeof folder.parentId !== 'string') {
+        await db.collection('folders').updateOne(
+          { _id: folder._id },
+          { $set: { parentId: folder.parentId.toString() } }
+        );
+        folderUpdates++;
+      }
+    }
+    if (folderUpdates > 0) console.log(`Data Unification: normalized ${folderUpdates} folder parentId fields to strings.`);
   } catch (error) {
     console.error('Data Unification Error:', error);
   }
@@ -189,6 +203,16 @@ app.post('/api/files/ai-create', async (req, res) => {
         folder = prefFolder;
         console.log(`Using preferred folder: ${folder.name} (${folder._id})`);
       }
+    }
+
+    // 1.5 Try to find a subfolder of the preferred folder that matches the name
+    if (!folder && preferredFolderId) {
+      folder = await db.collection('folders').findOne({
+        parentId: preferredFolderId.toString(),
+        userId,
+        name: { $regex: new RegExp(`^${folderName}$`, 'i') }
+      });
+      if (folder) console.log(`Found matching subfolder: ${folder.name} (${folder._id}) from preferred parent`);
     }
 
     // 2. Search for existing folder by name for this user
