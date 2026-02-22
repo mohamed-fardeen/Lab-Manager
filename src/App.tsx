@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import LandingPage from './components/LandingPage';
@@ -76,6 +77,7 @@ interface Message {
 }
 
 function App() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -141,6 +143,7 @@ function App() {
         setIsAuthenticated(true);
         setIsAdmin(!!data.isAdmin);
         setLoginModalOpen(false);
+        navigate('/users');
       } else {
         alert(data.error || 'Authentication failed');
       }
@@ -180,6 +183,7 @@ function App() {
     setSelectedFolder(null);
     setLoginRrn('');
     setLoginPassword('');
+    navigate('/');
   };
 
   const loadMessages = async () => {
@@ -611,56 +615,54 @@ function App() {
   const currentFiles = files.filter(f => selectedFolder ? f.folderId === selectedFolder : !f.folderId);
   const canUpload = selectedFolder && !folders.some(f => f.parentId === selectedFolder);
 
-  if (!isAuthenticated) {
-    return (
-      <>
-        <LandingPage onLoginClick={() => setLoginModalOpen(true)} />
+  const authElement = (
+    <>
+      <LandingPage onLoginClick={() => setLoginModalOpen(true)} />
 
-        <Dialog open={loginModalOpen} onOpenChange={setLoginModalOpen}>
-          <DialogContent className="sm:max-w-[420px] bg-[#020617] border-slate-800 p-0 overflow-hidden rounded-3xl">
-            <div className="p-8 space-y-6">
-              <div className="space-y-2 text-center">
-                <div className="mx-auto w-12 h-12 rounded-xl bg-electric-blue flex items-center justify-center shadow-blue-glow mb-4">
-                  <Zap size={24} className="text-white fill-white" />
-                </div>
-                <h2 className="text-2xl font-black italic tracking-tighter uppercase font-orbitron">Authorization</h2>
-                <p className="text-slate-500 text-xs">Verify your research protocol to proceed</p>
+      <Dialog open={loginModalOpen} onOpenChange={setLoginModalOpen}>
+        <DialogContent className="sm:max-w-[420px] bg-[#020617] border-slate-800 p-0 overflow-hidden rounded-3xl">
+          <div className="p-8 space-y-6">
+            <div className="space-y-2 text-center">
+              <div className="mx-auto w-12 h-12 rounded-xl bg-electric-blue flex items-center justify-center shadow-blue-glow mb-4">
+                <Zap size={24} className="text-white fill-white" />
               </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Researcher RRN</label>
-                  <input
-                    type="text"
-                    value={loginRrn}
-                    onChange={(e) => setLoginRrn(e.target.value)}
-                    placeholder="Enter RRN"
-                    className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none transition-all placeholder:text-slate-700"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Access Protocol</label>
-                  <input
-                    type="password"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                    placeholder="••••••••"
-                    className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none transition-all placeholder:text-slate-700"
-                  />
-                </div>
-                <Button onClick={handleLogin} disabled={loginLoading} className="w-full h-14 bg-electric-blue text-white font-black uppercase tracking-widest hover:bg-white hover:text-electric-blue transition-all rounded-2xl mt-4 border-none shadow-blue-glow">
-                  {loginLoading ? 'Authenticating...' : 'Establish Connection'}
-                </Button>
-              </div>
+              <h2 className="text-2xl font-black italic tracking-tighter uppercase font-orbitron">Authorization</h2>
+              <p className="text-slate-500 text-xs">Verify your research protocol to proceed</p>
             </div>
-          </DialogContent>
-        </Dialog>
-      </>
-    );
-  }
 
-  return (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Researcher RRN</label>
+                <input
+                  type="text"
+                  value={loginRrn}
+                  onChange={(e) => setLoginRrn(e.target.value)}
+                  placeholder="Enter RRN"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none transition-all placeholder:text-slate-700"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Access Protocol</label>
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none transition-all placeholder:text-slate-700"
+                />
+              </div>
+              <Button onClick={handleLogin} disabled={loginLoading} className="w-full h-14 bg-electric-blue text-white font-black uppercase tracking-widest hover:bg-white hover:text-electric-blue transition-all rounded-2xl mt-4 border-none shadow-blue-glow">
+                {loginLoading ? 'Authenticating...' : 'Establish Connection'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+
+  const appElement = (
     <div className="h-screen w-full bg-slate-950 text-slate-100 flex overflow-hidden font-sans selection:bg-electric-blue/30">
       <aside className="w-[240px] flex flex-col bg-slate-950 border-r border-slate-800 z-30">
         <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-800">
@@ -1158,6 +1160,15 @@ function App() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+
+  return (
+    <Routes>
+      <Route path="/" element={!isAuthenticated ? authElement : <Navigate to="/users" replace />} />
+      <Route path="/auth" element={!isAuthenticated ? authElement : <Navigate to="/users" replace />} />
+      <Route path="/users/*" element={isAuthenticated ? appElement : <Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
