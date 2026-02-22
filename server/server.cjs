@@ -65,7 +65,28 @@ async function unifyDataTypes() {
   }
 }
 
-connectDB().then(unifyDataTypes);
+async function initializeAdmin() {
+  try {
+    const admin = await db.collection('users').findOne({ rrn: 'ADMIN' });
+    if (!admin) {
+      await db.collection('users').insertOne({
+        name: 'System Administrator',
+        rrn: 'ADMIN',
+        password: 'ADMIN_PROTOCOL_99',
+        role: 'admin',
+        created: Date.now()
+      });
+      console.log('Admin Initialize: Default admin account created (ADMIN/ADMIN_PROTOCOL_99)');
+    }
+  } catch (error) {
+    console.error('Admin Init Error:', error);
+  }
+}
+
+connectDB().then(async () => {
+  await unifyDataTypes();
+  await initializeAdmin();
+});
 
 const db = client.db('lab_manager');
 
@@ -110,7 +131,7 @@ app.post('/api/auth/login', async (req, res) => {
     const { rrn, password } = req.body;
     const user = await db.collection('users').findOne({ rrn, password });
     if (user) {
-      res.json({ success: true, user });
+      res.json({ success: true, user, isAdmin: user.role === 'admin' });
     } else {
       res.status(401).json({ success: false, error: 'Invalid RRN or Access Protocol' });
     }
@@ -293,6 +314,34 @@ app.post('/api/messages', async (req, res) => {
     }
     const result = await db.collection('messages').insertOne(message);
     res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin Endpoints
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const users = await db.collection('users').find().toArray();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/admin/messages', async (req, res) => {
+  try {
+    await db.collection('messages').deleteMany({});
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/admin/messages/:id', async (req, res) => {
+  try {
+    await db.collection('messages').deleteOne({ _id: new ObjectId(req.params.id) });
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

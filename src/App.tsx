@@ -20,7 +20,9 @@ import {
   LogOut,
   Clock,
   Database,
-  Home
+  Home,
+  Shield,
+  Trash
 } from 'lucide-react';
 
 /* shadcn-like components (assuming they are set up or I fulfill their role) */
@@ -86,7 +88,8 @@ function App() {
   const [selectedModel, setSelectedModel] = useState('llama-3.3-70b-versatile');
   const [isSelecting, setIsSelecting] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'records' | 'recent' | 'settings' | 'collaboration'>('records');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'records' | 'recent' | 'settings' | 'collaboration' | 'admin'>('records');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginRrn, setLoginRrn] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -131,6 +134,7 @@ function App() {
       if (res.ok && data.success) {
         setSelectedUser(data.user._id);
         setIsAuthenticated(true);
+        setIsAdmin(!!data.isAdmin);
       } else {
         alert(data.error || 'Authentication failed');
       }
@@ -165,6 +169,7 @@ function App() {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
+    setIsAdmin(false);
     setSelectedUser(null);
     setSelectedFolder(null);
     setLoginRrn('');
@@ -174,9 +179,9 @@ function App() {
   const loadMessages = async () => {
     try {
       const res = await fetch('/api/messages');
+      if (!res.ok) throw new Error('Failed to fetch messages');
       const data = await res.json();
-      console.log('Fetched messages:', data.length);
-      setMessages(data);
+      setMessages(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error loading messages:', err);
     }
@@ -214,6 +219,25 @@ function App() {
       loadMessages();
     } catch (err) {
       console.error('Error sending message:', err);
+    }
+  };
+
+  const clearAllMessages = async () => {
+    if (!window.confirm('Are you sure you want to clear ALL messages globally?')) return;
+    try {
+      await fetch('/api/admin/messages', { method: 'DELETE' });
+      loadMessages();
+    } catch (err) {
+      console.error('Error clearing messages:', err);
+    }
+  };
+
+  const deleteMessage = async (id: string) => {
+    try {
+      await fetch(`/api/admin/messages/${id}`, { method: 'DELETE' });
+      loadMessages();
+    } catch (err) {
+      console.error('Error deleting message:', err);
     }
   };
 
@@ -644,6 +668,7 @@ function App() {
             { id: 'collaboration', label: 'Collaboration', icon: MessageSquare },
             { id: 'recent', label: 'Timeline', icon: Clock },
             { id: 'settings', label: 'Settings', icon: Settings },
+            ...(isAdmin ? [{ id: 'admin', label: 'Admin Panel', icon: Shield }] : []),
           ].map((link) => (
             <button key={link.id} onClick={() => setActiveTab(link.id as any)} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all relative ${activeTab === link.id ? 'bg-electric-blue/10 text-electric-blue' : 'text-slate-500 hover:text-slate-100 hover:bg-slate-900'}`}>
               {activeTab === link.id && <div className="absolute left-0 w-1 h-5 bg-electric-blue rounded-r-full" />}
@@ -683,7 +708,20 @@ function App() {
               {activeTab === 'recent' && 'Discovery Timeline'}
               {activeTab === 'collaboration' && 'Collaboration Hub'}
               {activeTab === 'settings' && 'System Configuration'}
+              {activeTab === 'admin' && 'Administrative Command Center'}
               {activeTab === 'records' && (selectedFolder ? folders.find(f => f._id === selectedFolder)?.name : 'Lab Categories')}
+              {activeTab === 'collaboration' && (
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={loadMessages} className="text-slate-400 hover:text-electric-blue">
+                    <RefreshCcw size={14} className="mr-1" /> Sync
+                  </Button>
+                  {isAdmin && (
+                    <Button variant="ghost" size="sm" onClick={clearAllMessages} className="text-red-400 hover:text-red-500">
+                      <Trash size={14} className="mr-1" /> Clear All
+                    </Button>
+                  )}
+                </div>
+              )}
             </h1>
           </div>
           <Button variant="outline" size="sm" onClick={() => { if (selectedUser) { loadFolders(selectedUser); loadAllFiles(selectedUser); } if (selectedFolder) loadFiles(selectedFolder); }} className="rounded-full border-slate-800 h-8 w-8 p-0">
@@ -829,6 +867,11 @@ function App() {
                     <div className="flex items-center gap-2 mb-1 px-2">
                       <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-500">{msg.senderName}</span>
                       <span className="text-[8px] text-slate-700">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      {isAdmin && (
+                        <button onClick={() => deleteMessage(msg._id)} className="text-slate-800 hover:text-red-500 transition-colors">
+                          <Trash size={10} />
+                        </button>
+                      )}
                     </div>
                     <div className={`max-w-[80%] p-4 rounded-2xl ${msg.senderId === selectedUser ? 'bg-electric-blue text-white rounded-tr-none shadow-blue-glow' : 'bg-slate-800 text-slate-100 rounded-tl-none'}`}>
                       {msg.content && <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>}
@@ -907,6 +950,46 @@ function App() {
                     <Send size={20} />
                   </Button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'admin' && (
+            <div className="max-w-6xl mx-auto py-6 space-y-6 animate-in">
+              <div className="glass-panel border-slate-800 overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-900/50 border-b border-slate-800">
+                    <tr>
+                      <th className="p-4 font-bold uppercase text-[10px] tracking-widest text-slate-500">Researcher</th>
+                      <th className="p-4 font-bold uppercase text-[10px] tracking-widest text-slate-500">RRN (ID)</th>
+                      <th className="p-4 font-bold uppercase text-[10px] tracking-widest text-slate-500">Access Protocol</th>
+                      <th className="p-4 font-bold uppercase text-[10px] tracking-widest text-slate-500">Role</th>
+                      <th className="p-4 font-bold uppercase text-[10px] tracking-widest text-slate-500">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/50">
+                    {users.map(u => (
+                      <tr key={u._id} className="hover:bg-slate-800/20 transition-colors group">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-xs">{u.name.charAt(0)}</div>
+                            <span className="font-medium text-slate-100">{u.name}</span>
+                          </div>
+                        </td>
+                        <td className="p-4 font-mono text-xs text-electric-blue">{u.rrn}</td>
+                        <td className="p-4 font-mono text-xs text-slate-400 group-hover:text-slate-100 transition-colors">{u.password}</td>
+                        <td className="p-4">
+                          <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded ${u.role === 'admin' ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-800 text-slate-500'}`}>
+                            {u.role || 'researcher'}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <Button variant="ghost" size="sm" onClick={() => { setSelectedUser(u._id); setActiveTab('records'); }} className="text-xs h-8 text-slate-500 hover:text-electric-blue">View Vault</Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
