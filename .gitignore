@@ -2,3 +2,32 @@ node_modules/
 dist/
 .env
 *.log
+
+# Antigravity / Agent files
+.agent/
+.shared/
+.gemini/
+.brain/
+
+# OS/Editor junk
+.DS_Store
+.vscode/
+.idea/
+
+# Temporary data/export files
+users_import.json
+*_users.cjs
+extract_users.py
+migrate_and_cleanup.cjs
+check_old_data.cjs
+find_targets.cjs
+verify_migration.cjs
+tsc_check*.txt
+tsc_errors.txt
+app_errors*.txt
+lint-output.txt
+tsc-output.txt
+dev_log.txt
+
+# Design system temp
+design-system/
