@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import LandingPage from './components/LandingPage';
 import {
   Plus,
   Trash2,
@@ -34,6 +35,8 @@ interface User {
   _id: string;
   name: string;
   rrn?: string;
+  password?: string;
+  role?: string;
 }
 
 interface Folder {
@@ -110,6 +113,8 @@ function App() {
     onConfirm: (val?: string) => void;
   }>({ isOpen: false, title: '', type: 'confirm', inputValue: '', onConfirm: () => { } });
 
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+
   const [contextMenu, setContextMenu] = useState<{
     isOpen: boolean;
     x: number;
@@ -135,6 +140,7 @@ function App() {
         setSelectedUser(data.user._id);
         setIsAuthenticated(true);
         setIsAdmin(!!data.isAdmin);
+        setLoginModalOpen(false);
       } else {
         alert(data.error || 'Authentication failed');
       }
@@ -607,47 +613,50 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="h-screen w-full bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-electric-blue/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]" />
+      <>
+        <LandingPage onLoginClick={() => setLoginModalOpen(true)} />
 
-        <div className="max-w-md w-full glass-panel p-10 space-y-8 animate-in border-slate-800 shadow-2xl relative z-10">
-          <div className="text-center space-y-3">
-            <div className="w-16 h-16 rounded-2xl bg-electric-blue mx-auto flex items-center justify-center shadow-blue-glow animate-pulse">
-              <Zap size={32} className="text-white fill-white" />
-            </div>
-            <h1 className="text-3xl font-bold tracking-tighter text-white uppercase italic">Lab-Sync</h1>
-            <p className="text-slate-400 text-sm">Synchronizing Intelligence with Discovery</p>
-          </div>
+        <Dialog open={loginModalOpen} onOpenChange={setLoginModalOpen}>
+          <DialogContent className="sm:max-w-[420px] bg-[#020617] border-slate-800 p-0 overflow-hidden rounded-3xl">
+            <div className="p-8 space-y-6">
+              <div className="space-y-2 text-center">
+                <div className="mx-auto w-12 h-12 rounded-xl bg-electric-blue flex items-center justify-center shadow-blue-glow mb-4">
+                  <Zap size={24} className="text-white fill-white" />
+                </div>
+                <h2 className="text-2xl font-black italic tracking-tighter uppercase font-orbitron">Authorization</h2>
+                <p className="text-slate-500 text-xs">Verify your research protocol to proceed</p>
+              </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Researcher RRN</label>
-              <input
-                type="text"
-                value={loginRrn}
-                onChange={(e) => setLoginRrn(e.target.value)}
-                placeholder="Enter RRN"
-                className="w-full bg-slate-900/50 border border-slate-800 rounded-xl p-3.5 text-sm text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none transition-all placeholder:text-slate-700"
-              />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Researcher RRN</label>
+                  <input
+                    type="text"
+                    value={loginRrn}
+                    onChange={(e) => setLoginRrn(e.target.value)}
+                    placeholder="Enter RRN"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none transition-all placeholder:text-slate-700"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Access Protocol</label>
+                  <input
+                    type="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                    placeholder="••••••••"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none transition-all placeholder:text-slate-700"
+                  />
+                </div>
+                <Button onClick={handleLogin} disabled={loginLoading} className="w-full h-14 bg-electric-blue text-white font-black uppercase tracking-widest hover:bg-white hover:text-electric-blue transition-all rounded-2xl mt-4 border-none shadow-blue-glow">
+                  {loginLoading ? 'Authenticating...' : 'Establish Connection'}
+                </Button>
+              </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Access Protocol</label>
-              <input
-                type="password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                placeholder="••••••••"
-                className="w-full bg-slate-900/50 border border-slate-800 rounded-xl p-3.5 text-sm text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none transition-all placeholder:text-slate-700"
-              />
-            </div>
-            <Button onClick={handleLogin} disabled={loginLoading} className="w-full h-12 bg-white text-slate-950 font-bold hover:bg-electric-blue hover:text-white transition-all rounded-xl mt-4 border-none">
-              {loginLoading ? 'Authenticating...' : 'Establish Connection'}
-            </Button>
-          </div>
-        </div>
-      </div>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 

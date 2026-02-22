@@ -59,6 +59,11 @@
   body {
     @apply bg-deep-slate text-foreground font-sans antialiased;
     background-color: var(--color-deep-slate);
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .font-orbitron {
+    font-family: 'Orbitron', sans-serif;
   }
 }
 
