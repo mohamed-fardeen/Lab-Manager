@@ -1,6 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import {
+  Users,
+  Plus,
+  Trash2,
+  Folder,
+  RefreshCcw,
+  MessageSquare,
+  Send,
+  FileText,
+  Download,
+  ArrowLeft,
+  X,
+  PlusCircle,
+  FolderPlus,
+  Zap,
+  MoreVertical,
+  ChevronRight,
+  FileIcon,
+  Search,
+  LayoutDashboard
+} from 'lucide-react';
+
+/* shadcn-like components (assuming they are set up or I fulfill their role) */
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface User {
   _id: string;
@@ -33,9 +60,6 @@ function App() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<FileItem | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  const [isSelecting, setIsSelecting] = useState(false);
-  const [selectionStart, setSelectionStart] = useState<{ x: number, y: number } | null>(null);
-  const [selectionEnd, setSelectionEnd] = useState<{ x: number, y: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatHistory, setChatHistory] = useState<{ role: string, content: string }[]>([]);
   const [chatMessage, setChatMessage] = useState('');
@@ -46,64 +70,26 @@ function App() {
     loadUsers();
   }, []);
 
-  // Fix: Only reset folder if the user actually CHANGED
   const lastUserId = useRef<string | null>(null);
   useEffect(() => {
-    if (selectedUser) {
+    if (selectedUser && selectedUser !== lastUserId.current) {
       loadFolders(selectedUser);
-      if (selectedUser !== lastUserId.current) {
-        setSelectedFolder(null);
-        lastUserId.current = selectedUser;
-      }
+      lastUserId.current = selectedUser;
     }
   }, [selectedUser]);
 
   useEffect(() => {
     if (selectedFolder) {
-      loadFiles(selectedFolder);
+      loadFiles(selectedFolder.toString());
+    } else {
+      setFiles([]);
     }
   }, [selectedFolder]);
 
-  // Global function for copying code
-  useEffect(() => {
-    (window as any).copyCode = async (btn: HTMLButtonElement) => {
-      const container = btn.closest('.code-block-container');
-      if (!container) return;
-      const codeElement = container.querySelector('code');
-      if (!codeElement) return;
-
-      const code = codeElement.innerText;
-      try {
-        await navigator.clipboard.writeText(code);
-        const originalContent = btn.innerHTML;
-        btn.innerHTML = '<span>✅ Copied!</span>';
-        btn.style.color = 'var(--success-color)';
-        setTimeout(() => {
-          btn.innerHTML = originalContent;
-          btn.style.color = '';
-        }, 2000);
-      } catch (err) {
-        console.error('Failed to copy:', err);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === 'd' && selectedUser) {
-        e.preventDefault();
-        deleteUser(selectedUser);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedUser, users]);
-
   async function loadUsers() {
     try {
-      const response = await fetch('/api/users');
-      const data = await response.json();
+      const res = await fetch('/api/users');
+      const data = await res.json();
       setUsers(data);
     } catch (error) {
       console.error('Error loading users:', error);
@@ -114,8 +100,8 @@ function App() {
 
   async function loadFolders(userId: string) {
     try {
-      const response = await fetch(`/api/folders/${userId}`);
-      const data = await response.json();
+      const res = await fetch(`/api/folders/${userId}`);
+      const data = await res.json();
       setFolders(data);
     } catch (error) {
       console.error('Error loading folders:', error);
@@ -124,10 +110,8 @@ function App() {
 
   async function loadFiles(folderId: string) {
     try {
-      console.log(`Fetching files for folder: ${folderId}`);
-      const response = await fetch(`/api/files/${folderId}`);
-      const data = await response.json();
-      console.log(`Loaded ${data.length} files from server.`);
+      const res = await fetch(`/api/files/${folderId}`);
+      const data = await res.json();
       setFiles(data);
     } catch (error) {
       console.error('Error loading files:', error);
@@ -135,146 +119,57 @@ function App() {
   }
 
   async function addUser() {
-    const name = prompt('User name:');
+    const name = prompt('Researcher Name:');
     if (name) {
       try {
-        const response = await fetch('/api/users', {
+        await fetch('/api/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name })
         });
-        const result = await response.json();
-        const userId = result.insertedId;
-        setUsers([...users, { _id: userId, name }]);
-
-        // Create default folders
-        const topFolders = ['Algorithmic Design', 'Network Methodologies', 'Data Mining'];
-        for (const folderName of topFolders) {
-          const folderResponse = await fetch('/api/folders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: folderName, userId, created: Date.now() })
-          });
-          const folderResult = await folderResponse.json();
-          const folderId = folderResult.insertedId;
-
-          // Create subfolders
-          await fetch('/api/folders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: 'Program', parentId: folderId, userId, created: Date.now() })
-          });
-          await fetch('/api/folders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: 'Other as Screenshots', parentId: folderId, userId, created: Date.now() })
-          });
-        }
-        loadUsers(); // Refresh users
+        loadUsers();
       } catch (error) {
         console.error('Error adding user:', error);
       }
     }
   }
 
-  async function deleteUser(userId: string) {
-    if (confirm('Delete user and all their data?')) {
+  async function deleteUser(id: string) {
+    if (confirm('Permanently delete researcher profile and all associated lab works?')) {
       try {
-        // Get all folders for this user
-        const foldersResponse = await fetch(`/ api / folders / ${userId} `);
-        const userFolders = await foldersResponse.json();
-
-        // Delete all files and folders for this user
-        for (const folder of userFolders) {
-          // Delete all files in this folder
-          const filesResponse = await fetch(`/ api / files / ${folder._id} `);
-          const files = await filesResponse.json();
-          for (const file of files) {
-            const deleteFileResponse = await fetch(`/ api / files / ${file._id} `, { method: 'DELETE' });
-            if (!deleteFileResponse.ok) {
-              console.error('Failed to delete file:', file._id);
-            }
-          }
-          // Delete the folder
-          const deleteFolderResponse = await fetch(`/ api / folders / ${folder._id} `, { method: 'DELETE' });
-          if (!deleteFolderResponse.ok) {
-            console.error('Failed to delete folder:', folder._id);
-          }
-        }
-
-        // Delete the user
-        const deleteUserResponse = await fetch(`/ api / users / ${userId} `, { method: 'DELETE' });
-        if (!deleteUserResponse.ok) {
-          throw new Error(`Failed to delete user: ${deleteUserResponse.status} `);
-        }
-
-        // Refresh UI
-        if (selectedUser === userId) {
-          setSelectedUser(null);
-          setSelectedFolder(null);
-        }
+        await fetch(`/api/users/${id}`, { method: 'DELETE' });
         loadUsers();
-        alert('User deleted successfully!');
+        setSelectedUser(null);
+        setSelectedFolder(null);
       } catch (error) {
         console.error('Error deleting user:', error);
-        alert('Error deleting user. Please check console for details.');
       }
     }
   }
 
-  function getCurrentFolders() {
-    if (!selectedUser) return [];
-    if (!selectedFolder) {
-      return folders.filter(f => f.userId === selectedUser && !f.parentId);
-    } else {
-      return folders.filter(f => f.parentId === selectedFolder);
-    }
-  }
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const fileList = e.target.files;
+    if (!fileList || !selectedFolder) return;
 
-  function getCurrentFiles() {
-    if (!selectedFolder) return [];
-    const filtered = files.filter(f => {
-      const match = String(f.folderId).trim() === String(selectedFolder).trim();
-      return match;
-    });
-    return filtered;
-  }
-
-  function handleFolderClick(folderId: string) {
-    const folder = folders.find(f => f._id === folderId);
-    if (folder && folders.some(f => f.parentId === folderId)) {
-      setSelectedFolder(folderId);
-    } else {
-      setSelectedFolder(folderId);
-    }
-  }
-
-  async function handleFiles(fileList: FileList) {
-    if (!selectedFolder) return;
-    for (const file of Array.from(fileList)) {
-      if (file.size > 4 * 1024 * 1024) {
-        alert('File too large (>4MB)');
-        continue;
-      }
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
       const reader = new FileReader();
       reader.onload = async () => {
-        const dataUrl = reader.result as string;
-        const base64 = dataUrl.split(',')[1];
-        const fileItem: Omit<FileItem, '_id'> = {
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          data: base64,
-          added: Date.now(),
-          folderId: selectedFolder
-        };
+        const base64 = (reader.result as string).split(',')[1];
         try {
           await fetch('/api/files', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(fileItem)
+            body: JSON.stringify({
+              name: file.name,
+              type: file.type || 'application/octet-stream',
+              size: file.size,
+              data: base64,
+              added: Date.now(),
+              folderId: selectedFolder
+            })
           });
-          loadFiles(selectedFolder); // Refresh files
+          loadFiles(selectedFolder.toString());
         } catch (error) {
           console.error('Error uploading file:', error);
         }
@@ -283,79 +178,12 @@ function App() {
     }
   }
 
-  function handleFileSelection(e: React.MouseEvent, fileId: string) {
-    if (e.ctrlKey || e.metaKey) {
-      // Multi-select with Ctrl/Cmd+Click
-      if (selectedFiles.includes(fileId)) {
-        setSelectedFiles(selectedFiles.filter(id => id !== fileId));
-      } else {
-        setSelectedFiles([...selectedFiles, fileId]);
-      }
-    } else {
-      // Single select with regular click
-      setSelectedFiles([fileId]);
-    }
-  }
-
-  function handleSelectionStart(e: React.MouseEvent) {
-    // Only start selection if clicking on the grid background, not on a card or button
-    if ((e.target as HTMLElement).closest('.card') || (e.target as HTMLElement).closest('.btn')) return;
-
-    setIsSelecting(true);
-    setSelectionStart({ x: e.clientX, y: e.clientY });
-    setSelectionEnd({ x: e.clientX, y: e.clientY });
-    setSelectedFiles([]);
-  }
-
-  function handleSelectionMove(e: React.MouseEvent) {
-    if (isSelecting && selectionStart) {
-      setSelectionEnd({ x: e.clientX, y: e.clientY });
-
-      const fileGrid = e.currentTarget as HTMLElement;
-      const fileElements = fileGrid.querySelectorAll('[data-file-id]');
-
-      const rectA = {
-        left: Math.min(selectionStart.x, e.clientX),
-        top: Math.min(selectionStart.y, e.clientY),
-        right: Math.max(selectionStart.x, e.clientX),
-        bottom: Math.max(selectionStart.y, e.clientY)
-      };
-
-      const selectedIds: string[] = [];
-      fileElements.forEach(element => {
-        const rectB = element.getBoundingClientRect();
-        const fileId = element.getAttribute('data-file-id');
-
-        if (fileId) {
-          // Check for intersection (Standard rectangle collision)
-          const isIntersecting = !(
-            rectB.left > rectA.right ||
-            rectB.right < rectA.left ||
-            rectB.top > rectA.bottom ||
-            rectB.bottom < rectA.top
-          );
-
-          if (isIntersecting) {
-            selectedIds.push(fileId);
-          }
-        }
-      });
-      setSelectedFiles(selectedIds);
-    }
-  }
-
-  function handleSelectionEnd() {
-    setIsSelecting(false);
-    setSelectionStart(null);
-    setSelectionEnd(null);
-  }
-
   async function deleteFile(fileId: string) {
     if (!selectedFolder) return;
-    if (confirm('Delete file?')) {
+    if (confirm('Delete lab record?')) {
       try {
         await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
-        loadFiles(selectedFolder); // Refresh files
+        loadFiles(selectedFolder.toString());
       } catch (error) {
         console.error('Error deleting file:', error);
       }
@@ -369,831 +197,301 @@ function App() {
     link.click();
   }
 
-  async function handleChat() {
+  const onSendMessage = async () => {
     if (!chatMessage.trim() || !selectedUser) return;
 
-    const userMsg = { role: 'user', content: chatMessage };
-    setChatHistory([...chatHistory, userMsg]);
+    const userMsg = chatMessage;
+    setChatHistory(prev => [...prev, { role: 'user', content: userMsg }]);
     setChatMessage('');
     setIsTyping(true);
 
     try {
-      const response = await fetch('/api/ai/chat', {
+      const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: chatMessage,
+          message: userMsg,
           userId: selectedUser,
           folderId: selectedFolder,
           model: selectedModel,
           history: chatHistory
         })
       });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
 
+      const data = await res.json();
       setChatHistory(prev => [...prev, { role: 'assistant', content: data.message }]);
-
-      // Check for file creation tags in the response - support both single and double quotes
-      const fileCreationMatch = Array.from(data.message.matchAll(/<create_file filename=["'](.*?)["'] folder=["'](.*?)["']>([\s\S]*?)<\/create_file>/g) as Iterable<RegExpMatchArray>);
-      let createdAny = false;
-
-      for (const match of fileCreationMatch) {
-        const [_, filename, folderName, content] = match;
-        console.log(`Processing AI file request: ${filename} in ${folderName} `);
-        try {
-          const res = await fetch('/api/files/ai-create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: selectedUser,
-              filename,
-              content: content.trim(),
-              folderName,
-              preferredFolderId: selectedFolder
-            })
-          });
-
-          if (!res.ok) throw new Error(await res.text());
-
-          createdAny = true;
-          console.log(`AI Auto-created file: ${filename} in ${folderName}`);
-
-          // Add a permanent local message to confirm creation
-          setChatHistory(prev => [...prev, {
-            role: 'assistant',
-            content: `✅ **SYSTEM UPDATE**: File \`${filename}\` has been locked into the \`${folderName}\` category.`
-          }]);
-        } catch (err: any) {
-          console.error('Failed to auto-create file:', err);
-          setChatHistory(prev => [...prev, {
-            role: 'assistant',
-            content: `❌ **SYSTEM ERROR**: Failed to save \`${filename}\`. ${err.message}`
-          }]);
-        }
-      }
-
-      if (createdAny) {
-        // Delay refresh slightly to ensure DB consistency and prevent flickering
-        setTimeout(() => {
-          if (selectedUser) loadFolders(selectedUser);
-          if (selectedFolder) loadFiles(selectedFolder);
-        }, 500);
-      }
     } catch (error) {
       console.error('Chat Error:', error);
-      setChatHistory(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
+      setChatHistory(prev => [...prev, { role: 'assistant', content: 'Collaboration interrupted. Please retry.' }]);
     } finally {
       setIsTyping(false);
     }
-  }
+  };
 
-  const currentFolders = getCurrentFolders();
-  const currentFiles = getCurrentFiles();
+  const currentFolders = folders.filter(f => f.parentId === (selectedFolder || undefined));
+  const currentFiles = files.filter(f => f.folderId === (selectedFolder || undefined));
   const canUpload = selectedFolder && !folders.some(f => f.parentId === selectedFolder);
 
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-deep-slate">
+        <RefreshCcw className="animate-spin text-electric-blue mb-4" size={48} />
+        <p className="text-slate-400 font-medium">Calibrating Lab Workspace...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="fade-in" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-color)', color: 'var(--text-color)' }}>
-      <header style={{
-        textAlign: 'center',
-        padding: '24px 20px',
-        background: 'linear-gradient(135deg, var(--secondary-bg) 0%, var(--tertiary-bg) 100%)',
-        fontSize: '28px',
-        fontWeight: 'bold',
-        borderBottom: '1px solid var(--border-color)',
-        boxShadow: 'var(--shadow-sm)'
-      }}>
-        🧪 Lab Works Manager
-      </header>
-      {loading ? (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginTop: '100px',
-          fontSize: '18px'
-        }}>
-          <div className="loading"></div>
-          <span style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>Loading your lab workspace...</span>
+    <div className="flex h-screen bg-deep-slate text-slate-100 overflow-hidden font-sans">
+      {/* Sidebar: Users/Researchers */}
+      <aside className="w-80 border-r border-slate-800 bg-slate-950/50 backdrop-blur-xl flex flex-col">
+        <div className="p-6 flex items-center gap-4 border-b border-slate-800">
+          <div className="w-10 h-10 rounded-xl bg-electric-blue/10 flex items-center justify-center">
+            <LayoutDashboard className="text-electric-blue" size={24} />
+          </div>
+          <h2 className="text-xl font-bold tracking-tight">Lab Manager</h2>
         </div>
-      ) : (
-        <div style={{ display: 'flex', flex: 1 }}>
-          <div style={{
-            width: '280px',
-            background: 'var(--secondary-bg)',
-            padding: '20px',
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            maxHeight: '100vh',
-            position: 'sticky',
-            top: '0'
-          }}
-          >
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '16px'
-            }}>
-              <h3 style={{
-                margin: '0',
-                fontSize: '18px',
-                fontWeight: '600',
-                color: 'var(--text-color)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                👥 Users
-              </h3>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  className="btn btn-sm"
-                  onClick={addUser}
-                  style={{
-                    fontSize: '18px',
-                    width: '32px',
-                    height: '32px',
-                    padding: '0',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                  title="Add User"
-                >
-                  ➕
-                </button>
-                {selectedUser && (
-                  <button
-                    className="btn btn-sm btn-danger"
-                    onClick={() => deleteUser(selectedUser)}
-                    style={{
-                      fontSize: '14px',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                    title="Delete Selected User (Ctrl+D)"
+
+        <ScrollArea className="flex-1 p-4">
+          <div className="flex items-center justify-between mb-4 px-2">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Researchers</span>
+            <Button variant="ghost" size="icon" onClick={addUser} className="h-8 w-8 hover:bg-electric-blue/10 hover:text-electric-blue">
+              <Plus size={18} />
+            </Button>
+          </div>
+
+          <div className="space-y-1">
+            {users.map(user => (
+              <div
+                key={user._id}
+                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 group ${selectedUser === user._id
+                    ? 'bg-electric-blue text-white shadow-blue-glow active-scale'
+                    : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-100'
+                  }`}
+                onClick={() => { setSelectedUser(user._id.toString()); setSelectedFolder(null); }}
+              >
+                <Avatar className="h-8 w-8 border-2 border-slate-800 shadow-sm">
+                  <AvatarFallback className={selectedUser === user._id ? 'bg-white text-electric-blue' : 'bg-slate-800 text-slate-400'}>
+                    {user.name.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="font-semibold flex-1 truncate">{user.name}</span>
+                {selectedUser === user._id && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/20 hover:text-white"
+                    onClick={(e) => { e.stopPropagation(); deleteUser(user._id); }}
                   >
-                    🗑️
-                  </button>
+                    <Trash2 size={14} />
+                  </Button>
                 )}
               </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
-              {users.map(user => (
-                <div
-                  key={user._id}
-                  className="card"
-                  style={{
-                    padding: '12px 16px',
-                    cursor: 'pointer',
-                    background: selectedUser === user._id ? 'var(--accent-color)' : 'var(--secondary-bg)',
-                    border: selectedUser === user._id ? '2px solid var(--accent-color)' : '1px solid var(--border-color)',
-                    transition: 'all 0.2s ease',
-                    position: 'relative'
-                  }}
-                  onClick={() => { setSelectedUser(user._id.toString()); setSelectedFolder(null); }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
-                      background: selectedUser === user._id ? 'var(--text-color)' : 'var(--accent-color)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      color: selectedUser === user._id ? 'var(--accent-color)' : 'var(--text-color)'
-                    }}>
-                      {user.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: '500' }}>{user.name}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Click to explore</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {/* User context menu removed */}
+            ))}
           </div>
-          <div style={{ flex: 1, padding: '24px', overflow: 'hidden' }}>
-            {selectedUser ? (
-              <>
-                {selectedFolder && (
-                  <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() => setSelectedFolder(null)}
-                    >
-                      ← Back to Folders
-                    </button>
-                    <button
-                      className="btn btn-secondary"
-                      title="Refresh files"
-                      onClick={() => { if (selectedFolder) loadFiles(selectedFolder); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      🔄 Refresh
-                    </button>
-                  </div>
-                )}
+        </ScrollArea>
+      </aside>
 
-                {currentFolders.length > 0 && (
-                  <div style={{ marginBottom: '32px' }}>
-                    <h2 style={{
-                      margin: '0 0 20px 0',
-                      fontSize: '20px',
-                      fontWeight: '600',
-                      color: 'var(--text-color)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '8px'
-                    }}>
-                      <span>📁 {selectedFolder ? 'Subfolders' : 'Lab Categories'}</span>
-                      <button
-                        className="btn btn-secondary"
-                        title="Refresh folders"
-                        onClick={() => {
-                          if (selectedUser) loadFolders(selectedUser);
-                          if (selectedFolder) loadFiles(selectedFolder);
-                        }}
-                        style={{ fontSize: '13px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                      >
-                        🔄 Refresh
-                      </button>
-                    </h2>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
-                      {currentFolders.map(folder => (
-                        <div
-                          key={folder._id}
-                          className="card"
-                          style={{
-                            cursor: 'pointer',
-                            position: 'relative',
-                            overflow: 'hidden'
-                          }}
-                          onClick={() => handleFolderClick(folder._id.toString())}
-                        >
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            marginBottom: '8px'
-                          }}>
-                            <div style={{
-                              fontSize: '32px',
-                              filter: 'hue-rotate(200deg)'
-                            }}>
-                              📂
-                            </div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{
-                                fontSize: '16px',
-                                fontWeight: '600',
-                                marginBottom: '4px'
-                              }}>
-                                {folder.name}
-                              </div>
-                              <div style={{
-                                fontSize: '12px',
-                                color: 'var(--text-secondary)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}>
-                                📅 {new Date(folder.created).toLocaleDateString()}
-                              </div>
-                            </div>
-                          </div>
-                          <div style={{
-                            position: 'absolute',
-                            bottom: '8px',
-                            right: '8px',
-                            fontSize: '20px',
-                            opacity: 0.5
-                          }}>
-                            →
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col bg-slate-900/40 relative">
+        <header className="h-20 border-b border-slate-800 flex items-center justify-between px-8 bg-slate-950/20 backdrop-blur-md">
+          <div className="flex items-center gap-4">
+            {selectedFolder && (
+              <Button variant="outline" size="sm" onClick={() => setSelectedFolder(null)} className="rounded-full border-slate-800 hover:border-electric-blue/50 hover:bg-electric-blue/5">
+                <ArrowLeft size={16} className="mr-2" /> Back
+              </Button>
+            )}
+            <h1 className="text-xl font-bold">
+              {selectedFolder ? folders.find(f => f._id === selectedFolder)?.name : (selectedUser ? 'Lab Categories' : 'Select Researcher')}
+            </h1>
+          </div>
 
-                {currentFiles.length > 0 && (
-                  <div>
-                    <h2 style={{
-                      margin: '0 0 20px 0',
-                      fontSize: '20px',
-                      fontWeight: '600',
-                      color: 'var(--text-color)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '8px'
-                    }}>
-                      <span>📄 Files ({currentFiles.length})</span>
-                      {selectedFiles.length > 0 && (
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                            {selectedFiles.length} selected
-                          </span>
-                          <button
-                            className="btn btn-sm btn-secondary"
-                            onClick={() => {
-                              selectedFiles.forEach(fileId => {
-                                const file = currentFiles.find(f => f._id === fileId);
-                                if (file) downloadFile(file);
-                              });
-                            }}
-                          >
-                            ⬇️ Download All
-                          </button>
-                          <button
-                            className="btn btn-sm btn-danger"
-                            onClick={async () => {
-                              if (confirm(`Delete ${selectedFiles.length} selected files?`)) {
-                                await Promise.all(
-                                  selectedFiles.map(fileId =>
-                                    fetch(`/api/files/${fileId}`, { method: 'DELETE' })
-                                  )
-                                );
-                                setSelectedFiles([]);
-                                if (selectedFolder) loadFiles(selectedFolder);
-                              }
-                            }}
-                          >
-                            🗑️ Delete All
-                          </button>
-                        </div>
-                      )}
-                    </h2>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', position: 'relative' }}
-                      onMouseDown={handleSelectionStart}
-                      onMouseMove={handleSelectionMove}
-                      onMouseUp={handleSelectionEnd}
-                      onMouseLeave={handleSelectionEnd}
-                    >
-                      {currentFiles.map(file => (
-                        <div
-                          key={file._id}
-                          className="card"
-                          data-file-id={file._id}
-                          style={{
-                            position: 'relative',
-                            border: selectedFiles.includes(file._id) ? '2px solid var(--accent-color)' : '1px solid var(--border-color)',
-                            background: selectedFiles.includes(file._id) ? 'rgba(99, 102, 241, 0.1)' : 'var(--secondary-bg)',
-                            transition: 'all 0.1s ease',
-                            cursor: 'pointer'
-                          }}
-                          onClick={(e) => handleFileSelection(e, file._id)}
-                        >
-                          <div
-                            style={{
-                              position: 'absolute',
-                              top: '8px',
-                              left: '8px',
-                              zIndex: 10
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedFiles.includes(file._id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedFiles([...selectedFiles, file._id]);
-                                } else {
-                                  setSelectedFiles(selectedFiles.filter(id => id !== file._id));
-                                }
-                              }}
-                              style={{ marginRight: '8px' }}
-                            />
-                          </div>
-                          {file.type.startsWith('image/') ? (
-                            <div style={{ position: 'relative' }}>
-                              <img
-                                src={`data:${file.type};base64,${file.data}`}
-                                alt={file.name}
-                                style={{
-                                  width: '100%',
-                                  height: '160px',
-                                  objectFit: 'cover',
-                                  cursor: 'pointer',
-                                  borderRadius: '8px 8px 0 0',
-                                  transition: 'transform 0.2s ease',
-                                  opacity: 1
-                                }}
-                                onClick={() => setLightbox(file)}
-                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                              />
-                              <div style={{
-                                position: 'absolute',
-                                top: '8px',
-                                right: '8px',
-                                background: 'rgba(0,0,0,0.7)',
-                                color: 'white',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                fontSize: '10px'
-                              }}>
-                                🖼️ Image
-                              </div>
-                            </div>
-                          ) : (
-                            <div style={{
-                              height: '160px',
-                              background: 'linear-gradient(135deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '48px',
-                              borderRadius: '8px 8px 0 0',
-                              position: 'relative',
-                              opacity: 1
-                            }}>
-                              📄
-                              <div style={{
-                                position: 'absolute',
-                                top: '8px',
-                                right: '8px',
-                                background: 'rgba(0,0,0,0.7)',
-                                color: 'white',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                fontSize: '10px'
-                              }}>
-                                📎 Document
-                              </div>
-                            </div>
-                          )}
-                          <div style={{ padding: '16px' }}>
-                            <div style={{
-                              fontSize: '14px',
-                              fontWeight: '500',
-                              marginBottom: '8px',
-                              wordBreak: 'break-word'
-                            }}>
-                              {file.name}
-                            </div>
-                            <div style={{
-                              fontSize: '12px',
-                              color: 'var(--text-secondary)',
-                              marginBottom: '12px'
-                            }}>
-                              <div>📊 {(file.size / 1024).toFixed(1)} KB</div>
-                              <div>🕒 {new Date(file.added).toLocaleString()}</div>
-                            </div>
-                            {/* Inline buttons removed */}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+          <div className="flex items-center gap-3">
+            {selectedUser && (
+              <Button variant="outline" size="sm" onClick={() => { if (selectedUser) loadFolders(selectedUser); if (selectedFolder) loadFiles(selectedFolder); }} className="rounded-full border-slate-800">
+                <RefreshCcw size={16} />
+              </Button>
+            )}
+          </div>
+        </header>
 
-                {canUpload && (
-                  <div
-                    className="card"
-                    style={{
-                      border: '2px dashed var(--accent-color)',
-                      padding: '48px',
-                      textAlign: 'center',
-                      marginTop: '32px',
-                      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(99, 102, 241, 0.1) 100%)',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease'
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.style.borderColor = 'var(--success-color)';
-                      e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
-                    }}
-                    onDragLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--accent-color)';
-                      e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(99, 102, 241, 0.1) 100%)';
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.style.borderColor = 'var(--accent-color)';
-                      e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(99, 102, 241, 0.1) 100%)';
-                      handleFiles(e.dataTransfer.files);
-                    }}
-                  >
-                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📤</div>
-                    <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
-                      Drop files here to upload
-                    </div>
-                    <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                      or click to browse
-                    </div>
-                    <input
-                      type="file"
-                      multiple
-                      id="file-input"
-                      onChange={(e) => handleFiles(e.target.files!)}
-                      style={{
-                        display: 'none'
-                      }}
-                    />
-                    <label
-                      htmlFor="file-input"
-                      className="btn"
-                      style={{ cursor: 'pointer' }}
+        <section className="flex-1 overflow-y-auto p-8">
+          {!selectedUser ? (
+            <div className="flex flex-col items-center justify-center h-full opacity-40">
+              <Users size={80} className="text-slate-600 mb-6" />
+              <h2 className="text-2xl font-bold mb-2">Researcher Profile Required</h2>
+              <p className="max-w-xs text-center">Select a profile from the left sidebar to access lab recordings and analysis.</p>
+            </div>
+          ) : (
+            <div className="space-y-8 max-w-7xl mx-auto">
+              {/* Category Selection Grid */}
+              {!selectedFolder && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {currentFolders.map(folder => (
+                    <div
+                      key={folder._id}
+                      className="glass-panel p-6 hover-glow cursor-pointer group flex items-start gap-4 animate-in"
+                      onClick={() => setSelectedFolder(folder._id)}
                     >
-                      📁 Choose Files
+                      <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center transition-colors group-hover:bg-electric-blue/10">
+                        <Folder className="text-slate-500 group-hover:text-electric-blue" size={28} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold mb-1">{folder.name}</h3>
+                        <p className="text-xs text-slate-500 font-medium">{new Date(folder.created).toLocaleDateString()}</p>
+                      </div>
+                      <ChevronRight size={20} className="text-slate-700 group-hover:text-electric-blue self-center" />
+                    </div>
+                  ))}
+                  <Button variant="outline" className="h-auto border-dashed border-2 border-slate-800 py-6 rounded-2xl hover:border-electric-blue/50 hover:bg-electric-blue/5 transition-all text-slate-500 hover:text-electric-blue" onClick={() => {/* Add category logic */ }}>
+                    <FolderPlus className="mr-2" /> New Category
+                  </Button>
+                </div>
+              )}
+
+              {/* File List Grid */}
+              {selectedFolder && (
+                <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+                  {canUpload && (
+                    <label className="glass-panel p-10 border-dashed border-2 border-slate-800 hover:border-electric-blue/50 hover:bg-electric-blue/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-4 text-slate-500 hover:text-electric-blue animate-in">
+                      <PlusCircle size={40} />
+                      <span className="font-bold tracking-tight">Upload Lab Results</span>
+                      <span className="text-xs opacity-60">PDF, Images, or Data files</span>
+                      <input type="file" multiple onChange={handleFileUpload} className="hidden" />
                     </label>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '12px' }}>
-                      Maximum file size: 4MB
+                  )}
+
+                  {currentFiles.map(file => (
+                    <div key={file._id} className="glass-panel overflow-hidden hover-glow animate-in" onClick={() => file.type.startsWith('image/') && setLightbox(file)}>
+                      <div className="aspect-video bg-slate-950 relative overflow-hidden flex items-center justify-center">
+                        {file.type.startsWith('image/') ? (
+                          <img src={`data:${file.type};base64,${file.data}`} alt={file.name} className="w-full h-full object-cover transition-transform duration-500 hover:scale-110" />
+                        ) : (
+                          <div className="flex flex-col items-center gap-3">
+                            <FileText size={48} className="text-slate-700" />
+                            <span className="text-xs font-mono text-slate-600 uppercase tracking-widest">{file.type.split('/')[1] || 'DATA'}</span>
+                          </div>
+                        )}
+                        <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button size="icon" variant="secondary" className="h-8 w-8 rounded-full shadow-lg" onClick={(e) => { e.stopPropagation(); downloadFile(file); }}>
+                            <Download size={14} />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="p-4 flex items-center justify-between">
+                        <div className="flex-1 truncate pr-4">
+                          <h3 className="font-bold truncate text-sm">{file.name}</h3>
+                          <p className="text-[10px] text-slate-500 font-mono tracking-taller">{(file.size / 1024).toFixed(1)} KB • {new Date(file.added).toLocaleDateString()}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-red-400" onClick={(e) => { e.stopPropagation(); deleteFile(file._id); }}>
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      </main>
+
+      {/* AI Sidebar: Intelligence Panel */}
+      <aside className="ai-sidebar-container shadow-2xl z-20">
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-electric-blue flex items-center justify-center shadow-blue-glow">
+              <Zap size={18} className="text-white fill-white" />
+            </div>
+            <h2 className="font-bold tracking-tight">Intelligence</h2>
+          </div>
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            className="bg-slate-900 border border-slate-800 rounded-lg py-1 px-3 text-[10px] font-bold text-slate-400 focus:ring-1 focus:ring-electric-blue outline-none transition-all"
+          >
+            <option value="llama-3.3-70b-versatile">Llama 3.3</option>
+            <option value="llama-3.2-11b-vision-preview">Vision 3.2</option>
+          </select>
+        </div>
+
+        <ScrollArea className="flex-1 p-6">
+          <div className="space-y-6">
+            {chatHistory.length === 0 ? (
+              <div className="py-10 text-center space-y-4 px-6">
+                <div className="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto mb-4">
+                  <MessageSquare className="text-slate-700" size={28} />
+                </div>
+                <h3 className="font-bold text-slate-300">Analyzer Online</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">Ask Lab-Bot to interpret screenshots, generate code snippets, or automate category organization.</p>
+              </div>
             ) : (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginTop: '100px',
-                fontSize: '18px',
-                color: 'var(--text-secondary)'
-              }}>
-                <div style={{ fontSize: '64px', marginBottom: '16px' }}>👤</div>
-                <div style={{ fontSize: '20px', fontWeight: '500', marginBottom: '8px' }}>No User Selected</div>
-                <div style={{ fontSize: '14px' }}>Select a user from the sidebar to view their lab folders</div>
+              chatHistory.map((msg, i) => (
+                <div key={i} className={`flex flex-col animate-in ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                  <div className={`p-4 rounded-2xl max-w-[90%] text-sm ${msg.role === 'user'
+                      ? 'bg-electric-blue text-white rounded-tr-none shadow-blue-glow'
+                      : 'bg-slate-900/80 border border-slate-800 text-slate-200 rounded-tl-none prose'
+                    }`}>
+                    <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked(msg.content) as string) }} />
+                  </div>
+                  <span className="text-[9px] font-bold text-slate-600 mt-2 uppercase tracking-widest">{msg.role === 'user' ? 'Scientist' : 'Lab-Bot'}</span>
+                </div>
+              ))
+            )}
+            {isTyping && (
+              <div className="flex items-center gap-3 py-2">
+                <div className="flex gap-1.5">
+                  <div className="w-1.5 h-1.5 bg-electric-blue rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-1.5 h-1.5 bg-electric-blue rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-1.5 h-1.5 bg-electric-blue rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
               </div>
             )}
           </div>
+        </ScrollArea>
 
-          <div className="ai-sidebar">
-            <div style={{
-              padding: '20px 16px',
-              borderBottom: '1px solid var(--border-color)',
-              fontWeight: '700',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              background: 'rgba(255,255,255,0.03)'
-            }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '20px' }}>🤖</span> Lab-Bot
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '4px',
-                    color: 'var(--text-secondary)',
-                    fontSize: '10px',
-                    padding: '2px 4px',
-                    outline: 'none',
-                    cursor: 'pointer',
-                    marginLeft: '8px'
-                  }}
-                >
-                  <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
-                  <option value="llama-3.2-11b-vision-preview">Llama 3.2 Vision</option>
-                  <option value="llama-3.1-8b-instant">Llama 3.1 8B</option>
-                </select>
-              </span>
-              {chatHistory.length > 0 && (
-                <button
-                  className="btn btn-sm btn-secondary"
-                  onClick={() => setChatHistory([])}
-                  style={{ padding: '4px 10px', fontSize: '11px' }}
-                >
-                  Clear Chat
-                </button>
-              )}
-            </div>
-            <div className="chat-container">
-              {chatHistory.length === 0 && (
-                <div style={{
-                  color: 'var(--text-secondary)',
-                  textAlign: 'center',
-                  marginTop: '60px',
-                  padding: '0 20px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
-                  alignItems: 'center'
-                }}>
-                  <div style={{ fontSize: '48px', opacity: 0.5 }}>🧪</div>
-                  <div style={{ fontWeight: '500', color: 'var(--text-color)' }}>Welcome to Lab-Bot!</div>
-                  <div style={{ fontSize: '13px' }}>
-                    I can help you analyze your screenshots, generate code snippets, or organize your lab categories.
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginTop: '12px' }}>
-                    {['Explain my files', 'How to organize?', 'Write React code'].map(suggestion => (
-                      <button
-                        key={suggestion}
-                        className="btn btn-sm btn-secondary"
-                        style={{ fontSize: '11px', borderRadius: '20px' }}
-                        onClick={() => { setChatMessage(suggestion); }}
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {chatHistory.map((msg, i) => (
-                <div key={i} className={`chat-message ${msg.role === 'user' ? 'user-message' : 'bot-message'}`}>
-                  {msg.role === 'assistant' ? (
-                    <div
-                      className="markdown-content"
-                      dangerouslySetInnerHTML={{
-                        __html: DOMPurify.sanitize(marked.parse(msg.content.replace(/<create_file[\s\S]*?<\/create_file>/g, ''), {
-                          renderer: Object.assign(new marked.Renderer(), {
-                            code(token: any, language?: string) {
-                              const code = typeof token === 'object' ? token.text : token;
-                              const lang = typeof token === 'object' ? token.lang : language;
-                              return `
-                                <div class="code-block-container">
-                                  <div class="code-block-header">
-                                    <span>${lang || 'code'}</span>
-                                    <button class="copy-code-btn" onclick="window.copyCode(this)">
-                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 4v12a2 2 0 002 2h8a2 2 0 002-2V7.242a2 2 0 00-.602-1.43L15.83 2.21A2 2 0 0014.4 1.6H10a2 2 0 00-2 2z"></path><path d="M16 20v2a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h2"></path></svg>
-                                      <span>Copy</span>
-                                    </button>
-                                  </div>
-                                  <pre><code class="language-${lang}">${code}</code></pre>
-                                </div>
-                              `;
-                            }
-                          })
-                        }) as string, {
-                          ADD_ATTR: ['onclick']
-                        })
-                      }}
-                    />
-                  ) : (
-                    <div style={{ fontWeight: '500' }}>{msg.content}</div>
-                  )}
-                </div>
-              ))}
-              {isTyping && (
-                <div className="chat-message bot-message" style={{ display: 'flex', gap: '4px', padding: '12px' }}>
-                  <div className="loading" style={{ width: '12px', height: '12px', borderWidth: '2px' }}></div>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Lab-Bot is thinking...</span>
-                </div>
-              )}
-            </div>
-            <div className="chat-input-area">
-              {!selectedUser && (
-                <div style={{
-                  fontSize: '11px',
-                  color: 'var(--danger-color)',
-                  textAlign: 'center',
-                  marginBottom: '8px',
-                  padding: '8px',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  borderRadius: '6px'
-                }}>
-                  ⚠️ Select a user to start chatting
-                </div>
-              )}
-              <textarea
-                className="chat-input"
-                placeholder={selectedUser ? "Ask Lab-Bot something..." : "Select a user first..."}
-                value={chatMessage}
-                disabled={!selectedUser || isTyping}
-                onChange={(e) => setChatMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleChat();
-                  }
-                }}
-                style={{
-                  minHeight: '80px',
-                  border: '1px solid var(--border-color)',
-                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
-                }}
-              />
-              <button
-                className="btn"
-                style={{ width: '100%', justifyContent: 'center', marginTop: '4px' }}
-                onClick={handleChat}
-                disabled={!selectedUser || isTyping || !chatMessage.trim()}
-              >
-                {isTyping ? 'Sending...' : 'Send Message'}
-              </button>
-            </div>
+        <div className="p-6 border-t border-slate-800 bg-slate-950/40">
+          <div className="flex items-end gap-3 glass-panel p-2 focus-within:ring-1 focus-within:ring-electric-blue transition-all">
+            <textarea
+              placeholder="Query Lab-Bot..."
+              value={chatMessage}
+              onChange={(e) => setChatMessage(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }}
+              className="flex-1 bg-transparent border-none text-slate-100 text-sm p-3 outline-none resize-none max-h-32 min-h-[44px] font-medium"
+            />
+            <Button
+              size="icon"
+              onClick={onSendMessage}
+              disabled={!chatMessage.trim() || !selectedUser}
+              className="h-10 w-10 bg-electric-blue hover:bg-white hover:text-electric-blue transition-all shadow-blue-glow rounded-xl"
+            >
+              <Send size={18} />
+            </Button>
           </div>
         </div>
-      )
-      }
-      {
-        lightbox && (
-          <div
-            className="fade-in"
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              background: 'rgba(0,0,0,0.95)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000,
-              cursor: 'pointer'
-            }}
-            onClick={() => setLightbox(null)}
-          >
-            <div style={{
-              position: 'relative',
-              maxWidth: '90%',
-              maxHeight: '90%',
-              borderRadius: '12px',
-              overflow: 'hidden',
-              boxShadow: 'var(--shadow)'
-            }}>
-              <img
-                src={`data:${lightbox.type};base64,${lightbox.data}`}
-                alt={lightbox.name}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                  display: 'block'
-                }}
-                onClick={(e) => e.stopPropagation()}
-              />
-              <div style={{
-                position: 'absolute',
-                bottom: '0',
-                left: '0',
-                right: '0',
-                background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)',
-                color: 'white',
-                padding: '20px',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px' }}>
-                  {lightbox.name}
-                </div>
-                <div style={{ fontSize: '12px', opacity: 0.8 }}>
-                  {(lightbox.size / 1024).toFixed(1)} KB • {new Date(lightbox.added).toLocaleString()}
-                </div>
-              </div>
-              <button
-                className="btn btn-danger"
-                style={{
-                  position: 'absolute',
-                  top: '16px',
-                  right: '16px',
-                  borderRadius: '50%',
-                  width: '40px',
-                  height: '40px',
-                  padding: '0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLightbox(null);
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        )
-      }
-      {/* Selection Rectangle Overlay */}
-      {
-        isSelecting && selectionStart && selectionEnd && (
-          <div style={{
-            position: 'fixed',
-            left: Math.min(selectionStart.x, selectionEnd.x),
-            top: Math.min(selectionStart.y, selectionEnd.y),
-            width: Math.abs(selectionStart.x - selectionEnd.x),
-            height: Math.abs(selectionStart.y - selectionEnd.y),
-            backgroundColor: 'rgba(99, 102, 241, 0.2)',
-            border: '1px solid var(--accent-color)',
-            pointerEvents: 'none',
-            zIndex: 10000,
-            borderRadius: '2px'
-          }} />
-        )
-      }
-    </div >
+      </aside>
+
+      {/* Lightbox Enhancement */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-[100] flex items-center justify-center p-8 transition-all animate-in"
+          onClick={() => setLightbox(null)}
+        >
+          <Button variant="outline" size="icon" className="absolute top-8 right-8 rounded-full border-slate-800 bg-slate-900 transition-transform hover:scale-110">
+            <X size={24} />
+          </Button>
+          <img
+            src={`data:${lightbox.type};base64,${lightbox.data}`}
+            alt={lightbox.name}
+            className="max-w-full max-h-full object-contain rounded-2xl shadow-blue-glow ring-1 ring-white/10"
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
-export default App
+export default App;
