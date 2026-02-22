@@ -287,6 +287,10 @@ app.post('/api/messages', async (req, res) => {
   try {
     const message = req.body;
     message.timestamp = Date.now();
+    // Handle migration from single file to array if needed
+    if (message.file && !message.files) {
+      message.files = [message.file];
+    }
     const result = await db.collection('messages').insertOne(message);
     res.json(result);
   } catch (error) {

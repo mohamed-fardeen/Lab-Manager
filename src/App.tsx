@@ -62,7 +62,12 @@ interface Message {
     _id: string;
     name: string;
     type: string;
-  }
+  };
+  files?: {
+    _id: string;
+    name: string;
+    type: string;
+  }[];
 }
 
 function App() {
@@ -90,7 +95,7 @@ function App() {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [globalMessage, setGlobalMessage] = useState('');
-  const [sharingFileId, setSharingFileId] = useState<string | null>(null);
+  const [sharingFileIds, setSharingFileIds] = useState<string[]>([]);
   const [cloningFileId, setCloningFileId] = useState<string | null>(null);
 
   const [modalConfig, setModalConfig] = useState<{
@@ -170,6 +175,7 @@ function App() {
     try {
       const res = await fetch('/api/messages');
       const data = await res.json();
+      console.log('Fetched messages:', data.length);
       setMessages(data);
     } catch (err) {
       console.error('Error loading messages:', err);
@@ -185,9 +191,12 @@ function App() {
   }, [isAuthenticated]);
 
   const sendGlobalMessage = async () => {
-    if (!globalMessage.trim() && !sharingFileId) return;
+    if (!globalMessage.trim() && sharingFileIds.length === 0) return;
     const user = users.find(u => u._id === selectedUser);
-    const sharedFile = sharingFileId ? allFiles.find(f => f._id === sharingFileId) : null;
+    const sharedFilesMetadata = sharingFileIds.map(fid => {
+      const f = allFiles.find(af => af._id === fid);
+      return f ? { _id: f._id, name: f.name, type: f.type } : null;
+    }).filter(Boolean);
 
     try {
       await fetch('/api/messages', {
@@ -197,11 +206,11 @@ function App() {
           senderId: selectedUser,
           senderName: user?.name || 'Researcher',
           content: globalMessage,
-          file: sharedFile ? { _id: sharedFile._id, name: sharedFile.name, type: sharedFile.type } : null
+          files: sharedFilesMetadata
         })
       });
       setGlobalMessage('');
-      setSharingFileId(null);
+      setSharingFileIds([]);
       loadMessages();
     } catch (err) {
       console.error('Error sending message:', err);
@@ -506,6 +515,7 @@ function App() {
     setChatHistory(prev => [...prev, { role: 'user', content: userMsg }]);
     setChatMessage('');
     setIsTyping(true);
+    setLoading(true); // Signal activity
 
     try {
       const res = await fetch('/api/ai/chat', {
@@ -563,6 +573,7 @@ function App() {
       setChatHistory(prev => [...prev, { role: 'assistant', content: 'Collaboration interrupted. Please retry. (' + (error as Error).message + ')' }]);
     } finally {
       setIsTyping(false);
+      setLoading(false);
     }
   };
 
@@ -710,6 +721,7 @@ function App() {
                       <span className="font-bold text-electric-blue">{selectedFiles.length} file(s) selected</span>
                       <div className="flex gap-3">
                         <Button variant="outline" size="sm" onClick={() => setSelectedFiles([])}>Cancel</Button>
+                        <Button variant="secondary" size="sm" onClick={() => { setSharingFileIds(selectedFiles); setActiveTab('collaboration'); }} className="bg-electric-blue/20 text-electric-blue border-electric-blue/30"><Send size={14} className="mr-2" /> Share</Button>
                         <Button variant="secondary" size="sm" onClick={bulkDownloadFiles} className="bg-electric-blue text-white shadow-blue-glow"><Download size={14} className="mr-2" /> Download</Button>
                         <Button variant="outline" size="sm" onClick={bulkDeleteFiles} className="text-red-400 border-red-500/30">Delete</Button>
                       </div>
@@ -771,8 +783,8 @@ function App() {
                 <div className="w-16 h-16 rounded-full bg-electric-blue/10 flex items-center justify-center text-electric-blue">
                   <Zap size={32} />
                 </div>
-                <h3 className="text-lg font-bold text-white uppercase italic">System Synchronized</h3>
-                <p className="text-slate-500 text-sm max-w-sm">All lab infrastructures are operational. Use the sidebar to browse categories or query Lab-Bot for discovery analysis.</p>
+                <h3 className="text-lg font-bold text-white uppercase italic">{loading ? 'Processing...' : 'System Synchronized'}</h3>
+                <p className="text-slate-500 text-sm max-w-sm">{isTyping ? 'Lab-Bot is analyzing local discovery data...' : 'All lab infrastructures are operational. Use the sidebar to browse categories or query Lab-Bot for discovery analysis.'}</p>
               </div>
             </div>
           )}
@@ -819,48 +831,55 @@ function App() {
                       <span className="text-[8px] text-slate-700">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                     <div className={`max-w-[80%] p-4 rounded-2xl ${msg.senderId === selectedUser ? 'bg-electric-blue text-white rounded-tr-none shadow-blue-glow' : 'bg-slate-800 text-slate-100 rounded-tl-none'}`}>
-                      {msg.content && <p className="text-sm leading-relaxed">{msg.content}</p>}
-                      {msg.file && (
-                        <div className={`mt-2 p-3 rounded-xl border flex items-center justify-between gap-4 ${msg.senderId === selectedUser ? 'bg-black/20 border-white/10' : 'bg-slate-900/50 border-slate-700'}`}>
+                      {msg.content && <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>}
+                      {((msg.files || (msg.file ? [msg.file] : [])) as any[]).filter(Boolean).map((file, idx) => (
+                        <div key={idx} className={`mt-2 p-3 rounded-xl border flex items-center justify-between gap-4 ${msg.senderId === selectedUser ? 'bg-black/20 border-white/10' : 'bg-slate-900/50 border-slate-700'}`}>
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
                               <FileText size={16} />
                             </div>
                             <div>
-                              <p className="text-xs font-bold line-clamp-1">{msg.file.name}</p>
-                              <p className="text-[9px] opacity-50 uppercase">{msg.file.type.split('/')[1]}</p>
+                              <p className="text-xs font-bold line-clamp-1">{file.name}</p>
+                              <p className="text-[9px] opacity-50 uppercase">{file.type.split('/')[1]}</p>
                             </div>
                           </div>
                           <div className="flex gap-2">
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white/20" onClick={() => {
-                              const f = allFiles.find(af => af._id === msg.file?._id);
+                              const f = allFiles.find(af => af._id === file._id);
                               if (f) {
                                 const link = document.createElement('a');
                                 link.href = `data:${f.type};base64,${f.data}`;
                                 link.download = f.name;
                                 link.click();
                               } else {
-                                alert('Downloading remote file content...');
+                                alert('Synchronizing record content...');
                               }
                             }}>
                               <Download size={14} />
                             </Button>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white/20 text-electric-blue" onClick={() => setCloningFileId(msg.file?._id || null)}>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white/20 text-electric-blue" onClick={() => setCloningFileId(file._id)}>
                               <RefreshCcw size={14} />
                             </Button>
                           </div>
                         </div>
-                      )}
+                      ))}
                     </div>
                   </div>
                 ))}
+
+                {messages.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-4 opacity-50">
+                    <MessageSquare size={48} strokeWidth={1} />
+                    <p className="text-sm italic font-medium">Broadcast intelligence sequence not yet initiated.</p>
+                  </div>
+                )}
               </div>
 
               <div className="p-6 bg-slate-950/20 backdrop-blur-md border-t border-slate-800 flex flex-col gap-3">
-                {sharingFileId && (
+                {sharingFileIds.length > 0 && (
                   <div className="flex items-center justify-between bg-electric-blue/10 border border-electric-blue/30 p-2 px-4 rounded-xl text-xs text-electric-blue animate-in">
-                    <span className="flex items-center gap-2"><FileText size={14} /> Sharing: {allFiles.find(f => f._id === sharingFileId)?.name}</span>
-                    <button onClick={() => setSharingFileId(null)}><X size={14} /></button>
+                    <span className="flex items-center gap-2"><FileText size={14} /> Sharing {sharingFileIds.length} Record(s)</span>
+                    <button onClick={() => setSharingFileIds([])}><X size={14} /></button>
                   </div>
                 )}
                 <div className="flex items-center gap-3">
@@ -1015,10 +1034,11 @@ function App() {
           </button>
 
           {contextMenu.item.type === 'file' && (
-            <button className="text-left px-4 py-2 text-sm text-electric-blue/80 hover:bg-electric-blue/10 hover:text-electric-blue flex items-center gap-2" onClick={() => { setSharingFileId(contextMenu.item!.id); setActiveTab('collaboration'); setContextMenu({ isOpen: false, x: 0, y: 0, item: null }); }}>
-              <Send size={14} /> Send to Group
+            <button className="text-left px-4 py-2 text-sm text-electric-blue/80 hover:bg-electric-blue/10 hover:text-electric-blue flex items-center gap-2" onClick={() => { if (!contextMenu.item) return; const ids = selectedFiles.length > 0 && selectedFiles.includes(contextMenu.item.id) ? selectedFiles : [contextMenu.item.id]; setSharingFileIds(ids); setActiveTab('collaboration'); setContextMenu({ isOpen: false, x: 0, y: 0, item: null }); }}>
+              <Send size={14} /> {selectedFiles.length > 0 && selectedFiles.includes(contextMenu.item.id) ? `Share ${selectedFiles.length} Selected` : 'Send to Group'}
             </button>
           )}
+
 
           {contextMenu.item.type === 'folder' && (
             <button className="text-left px-4 py-2 text-sm text-red-500/80 hover:bg-red-500/10 hover:text-red-400 flex items-center gap-2" onClick={() => { const id = contextMenu.item?.id; setContextMenu({ isOpen: false, x: 0, y: 0, item: null }); if (id) deleteFolder(id); }}>
