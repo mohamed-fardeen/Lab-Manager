@@ -256,6 +256,44 @@ app.put('/api/files/:id', async (req, res) => {
   }
 });
 
+app.post('/api/files/clone', async (req, res) => {
+  try {
+    const { fileId, targetFolderId } = req.body;
+    const originalFile = await db.collection('files').findOne({ _id: new ObjectId(fileId) });
+    if (!originalFile) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    const { _id, ...cloneData } = originalFile;
+    cloneData.folderId = targetFolderId;
+    cloneData.added = Date.now();
+    const result = await db.collection('files').insertOne(cloneData);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Collaboration
+app.get('/api/messages', async (req, res) => {
+  try {
+    const messages = await db.collection('messages').find().sort({ timestamp: 1 }).limit(100).toArray();
+    res.json(messages);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/messages', async (req, res) => {
+  try {
+    const message = req.body;
+    message.timestamp = Date.now();
+    const result = await db.collection('messages').insertOne(message);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/files/ai-create', async (req, res) => {
   console.log('AI-Create Request Received:', req.body);
   try {

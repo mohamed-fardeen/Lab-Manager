@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import {
-  Users,
   Plus,
   Trash2,
   Folder,
@@ -14,7 +13,6 @@ import {
   ArrowLeft,
   X,
   PlusCircle,
-  FolderPlus,
   Zap,
   PenLine,
   ChevronRight,
@@ -27,9 +25,7 @@ import {
 
 /* shadcn-like components (assuming they are set up or I fulfill their role) */
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 interface User {
@@ -56,6 +52,19 @@ interface FileItem {
   folderId: string;
 }
 
+interface Message {
+  _id: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  timestamp: number;
+  file?: {
+    _id: string;
+    name: string;
+    type: string;
+  }
+}
+
 function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -72,12 +81,17 @@ function App() {
   const [selectedModel, setSelectedModel] = useState('llama-3.3-70b-versatile');
   const [isSelecting, setIsSelecting] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'records' | 'recent' | 'settings'>('records');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'records' | 'recent' | 'settings' | 'collaboration'>('records');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginRrn, setLoginRrn] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [globalMessage, setGlobalMessage] = useState('');
+  const [sharingFileId, setSharingFileId] = useState<string | null>(null);
+  const [cloningFileId, setCloningFileId] = useState<string | null>(null);
 
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
@@ -150,6 +164,65 @@ function App() {
     setSelectedFolder(null);
     setLoginRrn('');
     setLoginPassword('');
+  };
+
+  const loadMessages = async () => {
+    try {
+      const res = await fetch('/api/messages');
+      const data = await res.json();
+      setMessages(data);
+    } catch (err) {
+      console.error('Error loading messages:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadMessages();
+      const interval = setInterval(loadMessages, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
+
+  const sendGlobalMessage = async () => {
+    if (!globalMessage.trim() && !sharingFileId) return;
+    const user = users.find(u => u._id === selectedUser);
+    const sharedFile = sharingFileId ? allFiles.find(f => f._id === sharingFileId) : null;
+
+    try {
+      await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderId: selectedUser,
+          senderName: user?.name || 'Researcher',
+          content: globalMessage,
+          file: sharedFile ? { _id: sharedFile._id, name: sharedFile.name, type: sharedFile.type } : null
+        })
+      });
+      setGlobalMessage('');
+      setSharingFileId(null);
+      loadMessages();
+    } catch (err) {
+      console.error('Error sending message:', err);
+    }
+  };
+
+  const cloneFileToFolder = async (fileId: string, targetFolderId: string) => {
+    try {
+      const res = await fetch('/api/files/clone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId, targetFolderId })
+      });
+      if (res.ok) {
+        alert('Record synchronized to your folder successfully.');
+        setCloningFileId(null);
+        if (selectedUser) loadAllFiles(selectedUser);
+      }
+    } catch (err) {
+      console.error('Error cloning file:', err);
+    }
   };
 
   useEffect(() => {
@@ -230,48 +303,6 @@ function App() {
     }
   }
 
-  async function addUser() {
-    setModalConfig({
-      isOpen: true,
-      title: 'Researcher Name',
-      description: 'Enter the name of the new researcher.',
-      type: 'prompt',
-      inputValue: '',
-      onConfirm: async (name) => {
-        if (!name) return;
-        try {
-          await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name })
-          });
-          loadUsers();
-        } catch (error) {
-          console.error('Error adding user:', error);
-        }
-      }
-    });
-  }
-
-  async function deleteUser(id: string) {
-    setModalConfig({
-      isOpen: true,
-      title: 'Delete Profile?',
-      description: 'Permanently delete researcher profile and all associated lab works?',
-      type: 'confirm',
-      inputValue: '',
-      onConfirm: async () => {
-        try {
-          await fetch(`/api/users/${id}`, { method: 'DELETE' });
-          loadUsers();
-          setSelectedUser(null);
-          setSelectedFolder(null);
-        } catch (error) {
-          console.error('Error deleting user:', error);
-        }
-      }
-    });
-  }
 
   async function addCategory() {
     const defaultName = selectedFolder ? 'New Sub-Category' : 'New Category';
@@ -599,8 +630,9 @@ function App() {
           {[
             { id: 'dashboard', label: 'Dashboard', icon: Home },
             { id: 'records', label: 'My Records', icon: Database },
+            { id: 'collaboration', label: 'Collaboration', icon: MessageSquare },
             { id: 'recent', label: 'Timeline', icon: Clock },
-            { id: 'settings', label: 'System Config', icon: Settings },
+            { id: 'settings', label: 'Settings', icon: Settings },
           ].map((link) => (
             <button key={link.id} onClick={() => setActiveTab(link.id as any)} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all relative ${activeTab === link.id ? 'bg-electric-blue/10 text-electric-blue' : 'text-slate-500 hover:text-slate-100 hover:bg-slate-900'}`}>
               {activeTab === link.id && <div className="absolute left-0 w-1 h-5 bg-electric-blue rounded-r-full" />}
@@ -638,6 +670,7 @@ function App() {
             <h1 className="text-lg font-bold">
               {activeTab === 'dashboard' && 'Operations Dashboard'}
               {activeTab === 'recent' && 'Discovery Timeline'}
+              {activeTab === 'collaboration' && 'Collaboration Hub'}
               {activeTab === 'settings' && 'System Configuration'}
               {activeTab === 'records' && (selectedFolder ? folders.find(f => f._id === selectedFolder)?.name : 'Lab Categories')}
             </h1>
@@ -776,6 +809,89 @@ function App() {
             </div>
           )}
 
+          {activeTab === 'collaboration' && (
+            <div className="flex flex-col h-full max-w-5xl mx-auto w-full animate-in">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-hide">
+                {messages.map(msg => (
+                  <div key={msg._id} className={`flex flex-col ${msg.senderId === selectedUser ? 'items-end' : 'items-start'} animate-in`}>
+                    <div className="flex items-center gap-2 mb-1 px-2">
+                      <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-500">{msg.senderName}</span>
+                      <span className="text-[8px] text-slate-700">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <div className={`max-w-[80%] p-4 rounded-2xl ${msg.senderId === selectedUser ? 'bg-electric-blue text-white rounded-tr-none shadow-blue-glow' : 'bg-slate-800 text-slate-100 rounded-tl-none'}`}>
+                      {msg.content && <p className="text-sm leading-relaxed">{msg.content}</p>}
+                      {msg.file && (
+                        <div className={`mt-2 p-3 rounded-xl border flex items-center justify-between gap-4 ${msg.senderId === selectedUser ? 'bg-black/20 border-white/10' : 'bg-slate-900/50 border-slate-700'}`}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                              <FileText size={16} />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold line-clamp-1">{msg.file.name}</p>
+                              <p className="text-[9px] opacity-50 uppercase">{msg.file.type.split('/')[1]}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white/20" onClick={() => {
+                              const f = allFiles.find(af => af._id === msg.file?._id);
+                              if (f) {
+                                const link = document.createElement('a');
+                                link.href = `data:${f.type};base64,${f.data}`;
+                                link.download = f.name;
+                                link.click();
+                              } else {
+                                alert('Downloading remote file content...');
+                              }
+                            }}>
+                              <Download size={14} />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white/20 text-electric-blue" onClick={() => setCloningFileId(msg.file?._id || null)}>
+                              <RefreshCcw size={14} />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-6 bg-slate-950/20 backdrop-blur-md border-t border-slate-800 flex flex-col gap-3">
+                {sharingFileId && (
+                  <div className="flex items-center justify-between bg-electric-blue/10 border border-electric-blue/30 p-2 px-4 rounded-xl text-xs text-electric-blue animate-in">
+                    <span className="flex items-center gap-2"><FileText size={14} /> Sharing: {allFiles.find(f => f._id === sharingFileId)?.name}</span>
+                    <button onClick={() => setSharingFileId(null)}><X size={14} /></button>
+                  </div>
+                )}
+                <div className="flex items-center gap-3">
+                  <div className="relative group">
+                    <Button variant="outline" size="icon" className="rounded-xl border-slate-800 hover:border-electric-blue h-12 w-12 cursor-pointer" onClick={() => setModalConfig({
+                      isOpen: true,
+                      title: 'Share Record',
+                      description: 'Select a record from your vault to share with the group.',
+                      type: 'confirm',
+                      inputValue: '',
+                      onConfirm: () => setActiveTab('records') // Hint to go back and select
+                    })}>
+                      <Plus size={20} />
+                    </Button>
+                  </div>
+                  <input
+                    type="text"
+                    value={globalMessage}
+                    onChange={(e) => setGlobalMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && sendGlobalMessage()}
+                    placeholder="Broadcast intelligence to all researchers..."
+                    className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-5 h-12 text-sm focus:ring-1 focus:ring-electric-blue outline-none transition-all"
+                  />
+                  <Button onClick={sendGlobalMessage} className="bg-electric-blue hover:bg-white hover:text-electric-blue text-white shadow-blue-glow h-12 w-12 p-0 rounded-xl transition-all">
+                    <Send size={20} />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'settings' && (
             <div className="max-w-md mx-auto py-10 space-y-6 animate-in">
               <div className="glass-panel p-6 border-slate-800 space-y-6">
@@ -869,11 +985,46 @@ function App() {
         </div>
       )}
 
+      {cloningFileId && (
+        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in">
+          <div className="max-w-md w-full glass-panel p-8 border-slate-800 shadow-2xl space-y-6">
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold italic tracking-tighter uppercase text-center">Synchronize Record</h2>
+              <p className="text-slate-400 text-xs text-center">Select a destination subfolder to archive this intelligence.</p>
+            </div>
+            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 scrollbar-hide">
+              {folders.filter(f => f.parentId).map(folder => {
+                const parent = folders.find(p => p._id === folder.parentId);
+                return (
+                  <button key={folder._id} onClick={() => cloneFileToFolder(cloningFileId, folder._id)} className="w-full text-left p-4 rounded-xl bg-slate-900/50 border border-slate-800 hover:border-electric-blue hover:bg-electric-blue/5 transition-all group">
+                    <p className="text-[9px] uppercase font-bold text-slate-500 group-hover:text-electric-blue/60">{parent?.name}</p>
+                    <p className="text-sm font-bold text-slate-100">{folder.name}</p>
+                  </button>
+                );
+              })}
+            </div>
+            <Button variant="outline" className="w-full text-xs font-bold border-slate-800" onClick={() => setCloningFileId(null)}>Cancel Operation</Button>
+          </div>
+        </div>
+      )}
+
       {contextMenu.isOpen && contextMenu.item && (
         <div className="fixed z-[150] w-48 bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-xl shadow-2xl py-2 flex flex-col animate-in duration-200" style={{ top: Math.min(contextMenu.y, window.innerHeight - 100), left: Math.min(contextMenu.x, window.innerWidth - 200) }} onClick={(e) => e.stopPropagation()}>
-          <button className="text-left px-4 py-2 text-sm text-slate-300 hover:bg-electric-blue/10 hover:text-electric-blue flex items-center gap-2" onClick={() => { setContextMenu({ isOpen: false, x: 0, y: 0, item: null }); if (contextMenu.item?.type === 'folder') renameFolder(contextMenu.item.id, contextMenu.item.name); else renameFile(contextMenu.item.id, contextMenu.item.name); }}>
+          <button className="text-left px-4 py-2 text-sm text-slate-300 hover:bg-electric-blue/10 hover:text-electric-blue flex items-center gap-2" onClick={() => { if (!contextMenu.item) return; const { id, name, type } = contextMenu.item; setContextMenu({ isOpen: false, x: 0, y: 0, item: null }); if (type === 'folder') renameFolder(id, name); else renameFile(id, name); }}>
             <PenLine size={14} /> Rename
           </button>
+
+          {contextMenu.item.type === 'file' && (
+            <button className="text-left px-4 py-2 text-sm text-electric-blue/80 hover:bg-electric-blue/10 hover:text-electric-blue flex items-center gap-2" onClick={() => { setSharingFileId(contextMenu.item!.id); setActiveTab('collaboration'); setContextMenu({ isOpen: false, x: 0, y: 0, item: null }); }}>
+              <Send size={14} /> Send to Group
+            </button>
+          )}
+
+          {contextMenu.item.type === 'folder' && (
+            <button className="text-left px-4 py-2 text-sm text-red-500/80 hover:bg-red-500/10 hover:text-red-400 flex items-center gap-2" onClick={() => { const id = contextMenu.item?.id; setContextMenu({ isOpen: false, x: 0, y: 0, item: null }); if (id) deleteFolder(id); }}>
+              <Trash2 size={14} /> Delete
+            </button>
+          )}
         </div>
       )}
 
