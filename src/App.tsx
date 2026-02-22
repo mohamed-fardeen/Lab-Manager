@@ -16,11 +16,13 @@ import {
   PlusCircle,
   FolderPlus,
   Zap,
-  MoreVertical,
+  PenLine,
   ChevronRight,
-  FileIcon,
-  Search,
-  LayoutDashboard
+  Settings,
+  LogOut,
+  Clock,
+  Database,
+  Home
 } from 'lucide-react';
 
 /* shadcn-like components (assuming they are set up or I fulfill their role) */
@@ -28,10 +30,12 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 interface User {
   _id: string;
   name: string;
+  rrn?: string;
 }
 
 interface Folder {
@@ -56,6 +60,7 @@ function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [allFiles, setAllFiles] = useState<FileItem[]>([]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<FileItem | null>(null);
@@ -65,24 +70,121 @@ function App() {
   const [chatMessage, setChatMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [selectedModel, setSelectedModel] = useState('llama-3.3-70b-versatile');
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'records' | 'recent' | 'settings'>('records');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginRrn, setLoginRrn] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [currentPass, setCurrentPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description?: string;
+    type: 'prompt' | 'confirm';
+    inputValue: string;
+    onConfirm: (val?: string) => void;
+  }>({ isOpen: false, title: '', type: 'confirm', inputValue: '', onConfirm: () => { } });
+
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    x: number;
+    y: number;
+    item: { id: string; name: string; type: 'folder' | 'file' } | null;
+  }>({ isOpen: false, x: 0, y: 0, item: null });
 
   useEffect(() => {
     loadUsers();
+  }, []);
+
+  const handleLogin = async () => {
+    if (!loginRrn || !loginPassword) return;
+    setLoginLoading(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rrn: loginRrn, password: loginPassword })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSelectedUser(data.user._id);
+        setIsAuthenticated(true);
+      } else {
+        alert(data.error || 'Authentication failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('Network error during authentication');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!currentPass || !newPass) return;
+    try {
+      const res = await fetch(`/api/users/${selectedUser}/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: currentPass, newPassword: newPass })
+      });
+      if (res.ok) {
+        alert('Access Protocol updated successfully');
+        setCurrentPass('');
+        setNewPass('');
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to update protocol');
+      }
+    } catch (error) {
+      console.error('Password change error:', error);
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setSelectedUser(null);
+    setSelectedFolder(null);
+    setLoginRrn('');
+    setLoginPassword('');
+  };
+
+  useEffect(() => {
+    const handleMouseUp = () => setIsSelecting(false);
+    const handleClick = () => setContextMenu(prev => ({ ...prev, isOpen: false }));
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('click', handleClick);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('click', handleClick);
+    };
   }, []);
 
   const lastUserId = useRef<string | null>(null);
   useEffect(() => {
     if (selectedUser && selectedUser !== lastUserId.current) {
       loadFolders(selectedUser);
+      loadAllFiles(selectedUser);
       lastUserId.current = selectedUser;
     }
   }, [selectedUser]);
 
   useEffect(() => {
+    if (selectedUser && (activeTab === 'dashboard' || activeTab === 'recent')) {
+      loadAllFiles(selectedUser);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     if (selectedFolder) {
       loadFiles(selectedFolder.toString());
+      setSelectedFiles([]);
     } else {
       setFiles([]);
+      setSelectedFiles([]);
     }
   }, [selectedFolder]);
 
@@ -118,33 +220,129 @@ function App() {
     }
   }
 
-  async function addUser() {
-    const name = prompt('Researcher Name:');
-    if (name) {
-      try {
-        await fetch('/api/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name })
-        });
-        loadUsers();
-      } catch (error) {
-        console.error('Error adding user:', error);
-      }
+  async function loadAllFiles(userId: string) {
+    try {
+      const res = await fetch(`/api/files/user/${userId}`);
+      const data = await res.json();
+      setAllFiles(data);
+    } catch (error) {
+      console.error('Error loading all files:', error);
     }
   }
 
-  async function deleteUser(id: string) {
-    if (confirm('Permanently delete researcher profile and all associated lab works?')) {
-      try {
-        await fetch(`/api/users/${id}`, { method: 'DELETE' });
-        loadUsers();
-        setSelectedUser(null);
-        setSelectedFolder(null);
-      } catch (error) {
-        console.error('Error deleting user:', error);
+  async function addUser() {
+    setModalConfig({
+      isOpen: true,
+      title: 'Researcher Name',
+      description: 'Enter the name of the new researcher.',
+      type: 'prompt',
+      inputValue: '',
+      onConfirm: async (name) => {
+        if (!name) return;
+        try {
+          await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+          });
+          loadUsers();
+        } catch (error) {
+          console.error('Error adding user:', error);
+        }
       }
-    }
+    });
+  }
+
+  async function deleteUser(id: string) {
+    setModalConfig({
+      isOpen: true,
+      title: 'Delete Profile?',
+      description: 'Permanently delete researcher profile and all associated lab works?',
+      type: 'confirm',
+      inputValue: '',
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/users/${id}`, { method: 'DELETE' });
+          loadUsers();
+          setSelectedUser(null);
+          setSelectedFolder(null);
+        } catch (error) {
+          console.error('Error deleting user:', error);
+        }
+      }
+    });
+  }
+
+  async function addCategory() {
+    const defaultName = selectedFolder ? 'New Sub-Category' : 'New Category';
+    setModalConfig({
+      isOpen: true,
+      title: defaultName,
+      description: `Enter a name for the ${defaultName.toLowerCase()}:`,
+      type: 'prompt',
+      inputValue: '',
+      onConfirm: async (name) => {
+        if (name && selectedUser) {
+          try {
+            await fetch('/api/folders', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name,
+                userId: selectedUser,
+                parentId: selectedFolder || null,
+                created: Date.now()
+              })
+            });
+            loadFolders(selectedUser);
+          } catch (error) {
+            console.error('Error adding category:', error);
+          }
+        }
+      }
+    });
+  }
+
+  async function renameFolder(id: string, currentName: string) {
+    setModalConfig({
+      isOpen: true,
+      title: 'Rename Category',
+      description: 'Enter a new name for this category.',
+      type: 'prompt',
+      inputValue: currentName,
+      onConfirm: async (name) => {
+        if (!name || name === currentName) return;
+        try {
+          await fetch(`/api/folders/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+          });
+          if (selectedUser) loadFolders(selectedUser);
+        } catch (error) {
+          console.error('Error renaming category:', error);
+        }
+      }
+    });
+  }
+
+  async function deleteFolder(id: string) {
+    setModalConfig({
+      isOpen: true,
+      title: 'Delete Category?',
+      description: 'Are you sure you want to permanently delete this category?',
+      type: 'confirm',
+      inputValue: '',
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/folders/${id}`, { method: 'DELETE' });
+          if (selectedUser) loadFolders(selectedUser);
+          if (selectedFolder === id) setSelectedFolder(null);
+        } catch (error) {
+          console.error('Error deleting category:', error);
+        }
+      }
+    });
   }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -180,14 +378,44 @@ function App() {
 
   async function deleteFile(fileId: string) {
     if (!selectedFolder) return;
-    if (confirm('Delete lab record?')) {
-      try {
-        await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
-        loadFiles(selectedFolder.toString());
-      } catch (error) {
-        console.error('Error deleting file:', error);
+    setModalConfig({
+      isOpen: true,
+      title: 'Delete lab record?',
+      description: 'Are you sure you want to permanently delete this file?',
+      type: 'confirm',
+      inputValue: '',
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
+          loadFiles(selectedFolder.toString());
+        } catch (error) {
+          console.error('Error deleting file:', error);
+        }
       }
-    }
+    });
+  }
+
+  async function renameFile(fileId: string, currentName: string) {
+    setModalConfig({
+      isOpen: true,
+      title: 'Rename File',
+      description: 'Enter a new name for this lab record.',
+      type: 'prompt',
+      inputValue: currentName,
+      onConfirm: async (name) => {
+        if (!name || name === currentName) return;
+        try {
+          await fetch(`/api/files/${fileId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+          });
+          if (selectedFolder) loadFiles(selectedFolder.toString());
+        } catch (error) {
+          console.error('Error renaming file:', error);
+        }
+      }
+    });
   }
 
   function downloadFile(file: FileItem) {
@@ -195,6 +423,49 @@ function App() {
     link.href = `data:${file.type};base64,${file.data}`;
     link.download = file.name;
     link.click();
+  }
+
+  const toggleSelection = (id: string) => {
+    setSelectedFiles(prev =>
+      prev.includes(id) ? prev.filter(fId => fId !== id) : [...prev, id]
+    );
+  };
+
+  const addSelection = (id: string) => {
+    setSelectedFiles(prev =>
+      prev.includes(id) ? prev : [...prev, id]
+    );
+  };
+
+  async function bulkDeleteFiles() {
+    if (selectedFiles.length === 0 || !selectedFolder) return;
+    setModalConfig({
+      isOpen: true,
+      title: 'Bulk Delete',
+      description: `Permanently delete ${selectedFiles.length} selected records?`,
+      type: 'confirm',
+      inputValue: '',
+      onConfirm: async () => {
+        try {
+          await Promise.all(selectedFiles.map(fileId =>
+            fetch(`/api/files/${fileId}`, { method: 'DELETE' })
+          ));
+          loadFiles(selectedFolder.toString());
+          setSelectedFiles([]);
+        } catch (error) {
+          console.error('Error in bulk delete:', error);
+        }
+      }
+    });
+  }
+
+  function bulkDownloadFiles() {
+    selectedFiles.forEach((fileId, i) => {
+      const file = files.find(f => f._id === fileId);
+      if (file) {
+        setTimeout(() => downloadFile(file), i * 300);
+      }
+    });
   }
 
   const onSendMessage = async () => {
@@ -219,277 +490,410 @@ function App() {
       });
 
       const data = await res.json();
-      setChatHistory(prev => [...prev, { role: 'assistant', content: data.message }]);
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Chat API Error');
+      }
+
+      let aiMessage = data.message || 'Error: Empty response';
+      setChatHistory(prev => [...prev, { role: 'assistant', content: aiMessage }]);
+
+      const fileRegex = /<create_file\s+filename="([^"]+)"\s*(?:folder="([^"]+)")?>([\s\S]*?)<\/create_file>/g;
+      let match;
+      let refreshNeeded = false;
+      while ((match = fileRegex.exec(aiMessage)) !== null) {
+        const filename = match[1];
+        const folderName = match[2] || '';
+        const content = match[3].trim();
+
+        try {
+          const createRes = await fetch('/api/files/ai-create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: selectedUser,
+              filename,
+              folderName,
+              content,
+              preferredFolderId: selectedFolder
+            })
+          });
+          if (createRes.ok) refreshNeeded = true;
+        } catch (err) {
+          console.error("Failed to execute AI file creation:", err);
+        }
+      }
+
+      if (refreshNeeded) {
+        if (selectedUser) loadFolders(selectedUser);
+        if (selectedFolder) loadFiles(selectedFolder);
+      }
     } catch (error) {
       console.error('Chat Error:', error);
-      setChatHistory(prev => [...prev, { role: 'assistant', content: 'Collaboration interrupted. Please retry.' }]);
+      setChatHistory(prev => [...prev, { role: 'assistant', content: 'Collaboration interrupted. Please retry. (' + (error as Error).message + ')' }]);
     } finally {
       setIsTyping(false);
     }
   };
 
-  const currentFolders = folders.filter(f => f.parentId === (selectedFolder || undefined));
-  const currentFiles = files.filter(f => f.folderId === (selectedFolder || undefined));
+  const currentFolders = folders.filter(f => selectedFolder ? f.parentId === selectedFolder : !f.parentId);
+  const currentFiles = files.filter(f => selectedFolder ? f.folderId === selectedFolder : !f.folderId);
   const canUpload = selectedFolder && !folders.some(f => f.parentId === selectedFolder);
 
-  if (loading) {
+  if (!isAuthenticated) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-deep-slate">
-        <RefreshCcw className="animate-spin text-electric-blue mb-4" size={48} />
-        <p className="text-slate-400 font-medium">Calibrating Lab Workspace...</p>
+      <div className="h-screen w-full bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-electric-blue/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]" />
+
+        <div className="max-w-md w-full glass-panel p-10 space-y-8 animate-in border-slate-800 shadow-2xl relative z-10">
+          <div className="text-center space-y-3">
+            <div className="w-16 h-16 rounded-2xl bg-electric-blue mx-auto flex items-center justify-center shadow-blue-glow animate-pulse">
+              <Zap size={32} className="text-white fill-white" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tighter text-white uppercase italic">Lab-Sync</h1>
+            <p className="text-slate-400 text-sm">Synchronizing Intelligence with Discovery</p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Researcher RRN</label>
+              <input
+                type="text"
+                value={loginRrn}
+                onChange={(e) => setLoginRrn(e.target.value)}
+                placeholder="Enter RRN"
+                className="w-full bg-slate-900/50 border border-slate-800 rounded-xl p-3.5 text-sm text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none transition-all placeholder:text-slate-700"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Access Protocol</label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                placeholder="••••••••"
+                className="w-full bg-slate-900/50 border border-slate-800 rounded-xl p-3.5 text-sm text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none transition-all placeholder:text-slate-700"
+              />
+            </div>
+            <Button onClick={handleLogin} disabled={loginLoading} className="w-full h-12 bg-white text-slate-950 font-bold hover:bg-electric-blue hover:text-white transition-all rounded-xl mt-4 border-none">
+              {loginLoading ? 'Authenticating...' : 'Establish Connection'}
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-deep-slate text-slate-100 overflow-hidden font-sans">
-      {/* Sidebar: Users/Researchers */}
-      <aside className="w-80 border-r border-slate-800 bg-slate-950/50 backdrop-blur-xl flex flex-col">
-        <div className="p-6 flex items-center gap-4 border-b border-slate-800">
-          <div className="w-10 h-10 rounded-xl bg-electric-blue/10 flex items-center justify-center">
-            <LayoutDashboard className="text-electric-blue" size={24} />
+    <div className="h-screen w-full bg-slate-950 text-slate-100 flex overflow-hidden font-sans selection:bg-electric-blue/30">
+      <aside className="w-[240px] flex flex-col bg-slate-950 border-r border-slate-800 z-30">
+        <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-800">
+          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-lg">
+            <Zap size={18} className="text-slate-950" />
           </div>
-          <h2 className="text-xl font-bold tracking-tight">Lab Manager</h2>
+          <h2 className="text-lg font-bold tracking-tighter uppercase italic">Lab-Sync</h2>
         </div>
 
-        <ScrollArea className="flex-1 p-4">
-          <div className="flex items-center justify-between mb-4 px-2">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Researchers</span>
-            <Button variant="ghost" size="icon" onClick={addUser} className="h-8 w-8 hover:bg-electric-blue/10 hover:text-electric-blue">
-              <Plus size={18} />
-            </Button>
-          </div>
+        <div className="flex-1 py-6 px-3 space-y-1">
+          {[
+            { id: 'dashboard', label: 'Dashboard', icon: Home },
+            { id: 'records', label: 'My Records', icon: Database },
+            { id: 'recent', label: 'Timeline', icon: Clock },
+            { id: 'settings', label: 'System Config', icon: Settings },
+          ].map((link) => (
+            <button key={link.id} onClick={() => setActiveTab(link.id as any)} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all relative ${activeTab === link.id ? 'bg-electric-blue/10 text-electric-blue' : 'text-slate-500 hover:text-slate-100 hover:bg-slate-900'}`}>
+              {activeTab === link.id && <div className="absolute left-0 w-1 h-5 bg-electric-blue rounded-r-full" />}
+              <link.icon size={18} />
+              <span className="text-sm font-bold">{link.label}</span>
+            </button>
+          ))}
+        </div>
 
-          <div className="space-y-1">
-            {users.map(user => (
-              <div
-                key={user._id}
-                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 group ${selectedUser === user._id
-                    ? 'bg-electric-blue text-white shadow-blue-glow active-scale'
-                    : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-100'
-                  }`}
-                onClick={() => { setSelectedUser(user._id.toString()); setSelectedFolder(null); }}
-              >
-                <Avatar className="h-8 w-8 border-2 border-slate-800 shadow-sm">
-                  <AvatarFallback className={selectedUser === user._id ? 'bg-white text-electric-blue' : 'bg-slate-800 text-slate-400'}>
-                    {user.name.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="font-semibold flex-1 truncate">{user.name}</span>
-                {selectedUser === user._id && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/20 hover:text-white"
-                    onClick={(e) => { e.stopPropagation(); deleteUser(user._id); }}
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                )}
-              </div>
-            ))}
+        <div className="p-4 mt-auto">
+          <div className="glass-panel p-3 rounded-xl border-slate-800 flex items-center gap-3">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-slate-800 text-slate-300 text-[10px]">
+                {users.find(u => u._id === selectedUser)?.name.charAt(0).toUpperCase() || 'S'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 truncate">
+              <p className="text-[11px] font-bold text-white truncate">{users.find(u => u._id === selectedUser)?.name || 'Researcher'}</p>
+            </div>
+            <button onClick={handleLogout} className="text-slate-600 hover:text-red-400 p-1">
+              <LogOut size={16} />
+            </button>
           </div>
-        </ScrollArea>
+        </div>
       </aside>
 
-      {/* Main Content Area */}
       <main className="flex-1 flex flex-col bg-slate-900/40 relative">
-        <header className="h-20 border-b border-slate-800 flex items-center justify-between px-8 bg-slate-950/20 backdrop-blur-md">
+        <header className="h-14 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-950/20 backdrop-blur-md">
           <div className="flex items-center gap-4">
-            {selectedFolder && (
-              <Button variant="outline" size="sm" onClick={() => setSelectedFolder(null)} className="rounded-full border-slate-800 hover:border-electric-blue/50 hover:bg-electric-blue/5">
-                <ArrowLeft size={16} className="mr-2" /> Back
+            {selectedFolder && activeTab === 'records' && (
+              <Button variant="outline" size="sm" onClick={() => setSelectedFolder(folders.find(f => f._id === selectedFolder)?.parentId || null)} className="rounded-full border-slate-800 h-8 px-3 text-xs">
+                <ArrowLeft size={14} className="mr-1.5" /> Back
               </Button>
             )}
-            <h1 className="text-xl font-bold">
-              {selectedFolder ? folders.find(f => f._id === selectedFolder)?.name : (selectedUser ? 'Lab Categories' : 'Select Researcher')}
+            <h1 className="text-lg font-bold">
+              {activeTab === 'dashboard' && 'Operations Dashboard'}
+              {activeTab === 'recent' && 'Discovery Timeline'}
+              {activeTab === 'settings' && 'System Configuration'}
+              {activeTab === 'records' && (selectedFolder ? folders.find(f => f._id === selectedFolder)?.name : 'Lab Categories')}
             </h1>
           </div>
-
-          <div className="flex items-center gap-3">
-            {selectedUser && (
-              <Button variant="outline" size="sm" onClick={() => { if (selectedUser) loadFolders(selectedUser); if (selectedFolder) loadFiles(selectedFolder); }} className="rounded-full border-slate-800">
-                <RefreshCcw size={16} />
-              </Button>
-            )}
-          </div>
+          <Button variant="outline" size="sm" onClick={() => { if (selectedUser) { loadFolders(selectedUser); loadAllFiles(selectedUser); } if (selectedFolder) loadFiles(selectedFolder); }} className="rounded-full border-slate-800 h-8 w-8 p-0">
+            <RefreshCcw size={14} />
+          </Button>
         </header>
 
-        <section className="flex-1 overflow-y-auto p-8">
-          {!selectedUser ? (
-            <div className="flex flex-col items-center justify-center h-full opacity-40">
-              <Users size={80} className="text-slate-600 mb-6" />
-              <h2 className="text-2xl font-bold mb-2">Researcher Profile Required</h2>
-              <p className="max-w-xs text-center">Select a profile from the left sidebar to access lab recordings and analysis.</p>
-            </div>
-          ) : (
+        <section className="flex-1 overflow-y-auto p-6">
+          {activeTab === 'records' && (
             <div className="space-y-8 max-w-7xl mx-auto">
-              {/* Category Selection Grid */}
-              {!selectedFolder && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {(!selectedFolder || currentFolders.length > 0) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                   {currentFolders.map(folder => (
-                    <div
-                      key={folder._id}
-                      className="glass-panel p-6 hover-glow cursor-pointer group flex items-start gap-4 animate-in"
-                      onClick={() => setSelectedFolder(folder._id)}
-                    >
-                      <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center transition-colors group-hover:bg-electric-blue/10">
-                        <Folder className="text-slate-500 group-hover:text-electric-blue" size={28} />
+                    <div key={folder._id} className="glass-panel p-4 hover-glow cursor-pointer group flex items-start gap-3 animate-in" onClick={() => setSelectedFolder(folder._id)} onContextMenu={(e) => { e.preventDefault(); setContextMenu({ isOpen: true, x: e.clientX, y: e.clientY, item: { id: folder._id, name: folder.name, type: 'folder' } }); }}>
+                      <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center group-hover:bg-electric-blue/10">
+                        <Folder size={20} className="text-slate-500 group-hover:text-electric-blue" />
                       </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-bold mb-1">{folder.name}</h3>
-                        <p className="text-xs text-slate-500 font-medium">{new Date(folder.created).toLocaleDateString()}</p>
+                      <div className="flex-1 pt-0.5">
+                        <h3 className="text-base font-bold mb-0.5 leading-tight">{folder.name}</h3>
+                        <p className="text-[10px] text-slate-500">{new Date(folder.created).toLocaleDateString()}</p>
                       </div>
-                      <ChevronRight size={20} className="text-slate-700 group-hover:text-electric-blue self-center" />
+                      <ChevronRight size={16} className="text-slate-700 self-center" />
                     </div>
                   ))}
-                  <Button variant="outline" className="h-auto border-dashed border-2 border-slate-800 py-6 rounded-2xl hover:border-electric-blue/50 hover:bg-electric-blue/5 transition-all text-slate-500 hover:text-electric-blue" onClick={() => {/* Add category logic */ }}>
-                    <FolderPlus className="mr-2" /> New Category
+                  <Button variant="outline" className="h-auto border-dashed border-2 border-slate-800 py-4 rounded-xl hover:border-electric-blue text-slate-500 flex items-center" onClick={addCategory}>
+                    <Plus size={18} className="mr-2" /> <span className="text-sm">{selectedFolder ? 'New Sub-Category' : 'New Category'}</span>
                   </Button>
                 </div>
               )}
 
-              {/* File List Grid */}
               {selectedFolder && (
-                <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
-                  {canUpload && (
-                    <label className="glass-panel p-10 border-dashed border-2 border-slate-800 hover:border-electric-blue/50 hover:bg-electric-blue/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-4 text-slate-500 hover:text-electric-blue animate-in">
-                      <PlusCircle size={40} />
-                      <span className="font-bold tracking-tight">Upload Lab Results</span>
-                      <span className="text-xs opacity-60">PDF, Images, or Data files</span>
-                      <input type="file" multiple onChange={handleFileUpload} className="hidden" />
-                    </label>
+                <>
+                  {selectedFiles.length > 0 && (
+                    <div className="flex items-center justify-between bg-electric-blue/10 border border-electric-blue/30 rounded-2xl p-4 mb-6 shadow-blue-glow animate-in">
+                      <span className="font-bold text-electric-blue">{selectedFiles.length} file(s) selected</span>
+                      <div className="flex gap-3">
+                        <Button variant="outline" size="sm" onClick={() => setSelectedFiles([])}>Cancel</Button>
+                        <Button variant="secondary" size="sm" onClick={bulkDownloadFiles} className="bg-electric-blue text-white shadow-blue-glow"><Download size={14} className="mr-2" /> Download</Button>
+                        <Button variant="outline" size="sm" onClick={bulkDeleteFiles} className="text-red-400 border-red-500/30">Delete</Button>
+                      </div>
+                    </div>
                   )}
 
-                  {currentFiles.map(file => (
-                    <div key={file._id} className="glass-panel overflow-hidden hover-glow animate-in" onClick={() => file.type.startsWith('image/') && setLightbox(file)}>
-                      <div className="aspect-video bg-slate-950 relative overflow-hidden flex items-center justify-center">
-                        {file.type.startsWith('image/') ? (
-                          <img src={`data:${file.type};base64,${file.data}`} alt={file.name} className="w-full h-full object-cover transition-transform duration-500 hover:scale-110" />
-                        ) : (
-                          <div className="flex flex-col items-center gap-3">
-                            <FileText size={48} className="text-slate-700" />
-                            <span className="text-xs font-mono text-slate-600 uppercase tracking-widest">{file.type.split('/')[1] || 'DATA'}</span>
-                          </div>
-                        )}
-                        <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button size="icon" variant="secondary" className="h-8 w-8 rounded-full shadow-lg" onClick={(e) => { e.stopPropagation(); downloadFile(file); }}>
-                            <Download size={14} />
-                          </Button>
-                        </div>
-                      </div>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
+                    {canUpload && (
+                      <label className="glass-panel p-6 border-dashed border-2 border-slate-800 hover:border-electric-blue/50 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 text-slate-500 min-h-[160px]">
+                        <PlusCircle size={32} />
+                        <span className="font-bold text-sm">Upload Lab Results</span>
+                        <input type="file" multiple onChange={handleFileUpload} className="hidden" />
+                      </label>
+                    )}
 
-                      <div className="p-4 flex items-center justify-between">
-                        <div className="flex-1 truncate pr-4">
-                          <h3 className="font-bold truncate text-sm">{file.name}</h3>
-                          <p className="text-[10px] text-slate-500 font-mono tracking-taller">{(file.size / 1024).toFixed(1)} KB • {new Date(file.added).toLocaleDateString()}</p>
+                    {currentFiles.map(file => (
+                      <div key={file._id} className={`glass-panel overflow-hidden hover-glow animate-in group select-none ${selectedFiles.includes(file._id) ? 'ring-2 ring-electric-blue shadow-blue-glow' : ''}`} onMouseDown={() => { setIsSelecting(true); toggleSelection(file._id); }} onMouseEnter={() => { if (isSelecting) addSelection(file._id); }} onDoubleClick={() => file.type.startsWith('image/') && setLightbox(file)} onContextMenu={(e) => { e.preventDefault(); setContextMenu({ isOpen: true, x: e.clientX, y: e.clientY, item: { id: file._id, name: file.name, type: 'file' } }); }}>
+                        <div className="aspect-video bg-slate-950 relative flex items-center justify-center">
+                          {file.type.startsWith('image/') ? (
+                            <img src={`data:${file.type};base64,${file.data}`} alt={file.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <FileText size={36} className="text-slate-700" />
+                          )}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="p-4 flex items-center justify-between">
+                          <div className="flex-1 truncate">
+                            <h3 className="font-bold truncate text-sm">{file.name}</h3>
+                            <p className="text-[10px] text-slate-500">{(file.size / 1024).toFixed(1)} KB • {new Date(file.added).toLocaleDateString()}</p>
+                          </div>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-red-400" onClick={(e) => { e.stopPropagation(); deleteFile(file._id); }}>
                             <Trash2 size={14} />
                           </Button>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </>
               )}
+            </div>
+          )}
+
+          {activeTab === 'dashboard' && (
+            <div className="max-w-4xl mx-auto space-y-8 animate-in">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="glass-panel p-6 border-slate-800 space-y-2">
+                  <div className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Active Researcher</div>
+                  <div className="text-2xl font-bold text-white">{users.find(u => u._id === selectedUser)?.name || 'N/A'}</div>
+                </div>
+                <div className="glass-panel p-6 border-slate-800 space-y-2">
+                  <div className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Total Categories</div>
+                  <div className="text-2xl font-bold text-electric-blue">{folders.length}</div>
+                </div>
+                <div className="glass-panel p-6 border-slate-800 space-y-2">
+                  <div className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Lab Records</div>
+                  <div className="text-2xl font-bold text-white">{allFiles.length}</div>
+                </div>
+              </div>
+              <div className="glass-panel p-8 border-slate-800 flex flex-col items-center justify-center min-h-[300px] text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-electric-blue/10 flex items-center justify-center text-electric-blue">
+                  <Zap size={32} />
+                </div>
+                <h3 className="text-lg font-bold text-white uppercase italic">System Synchronized</h3>
+                <p className="text-slate-500 text-sm max-w-sm">All lab infrastructures are operational. Use the sidebar to browse categories or query Lab-Bot for discovery analysis.</p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'recent' && (
+            <div className="max-w-4xl mx-auto space-y-6 animate-in">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">Discovery Timeline</h2>
+                <span className="text-[10px] font-bold text-slate-600 uppercase">Last 20 records</span>
+              </div>
+              <div className="space-y-3">
+                {[...allFiles].sort((a, b) => b.added - a.added).slice(0, 20).map(file => (
+                  <div key={file._id} className="glass-panel p-4 flex items-center justify-between hover:bg-slate-800/30 transition-all group">
+                    <div className="flex items-center gap-4 truncate">
+                      <div className="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center border border-slate-800">
+                        {file.type.startsWith('image/') ? <img src={`data:${file.type};base64,${file.data}`} className="w-6 h-6 object-cover rounded" /> : <FileText size={18} className="text-slate-500" />}
+                      </div>
+                      <div className="truncate">
+                        <p className="text-sm font-bold text-white truncate">{file.name}</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                          {folders.find(f => f._id === file.folderId)?.name || 'Archived'} • {new Date(file.added).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => downloadFile(file)} className="h-8 w-8 text-slate-700 hover:text-electric-blue">
+                      <Download size={16} />
+                    </Button>
+                  </div>
+                ))}
+                {allFiles.length === 0 && (
+                  <div className="text-center py-20 text-slate-600 italic text-sm">No discovery records found.</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="max-w-md mx-auto py-10 space-y-6 animate-in">
+              <div className="glass-panel p-6 border-slate-800 space-y-6">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-white border-b border-slate-800 pb-4">Personalization</h3>
+                <div className="space-y-4 border-b border-slate-800 pb-6">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400">Appearance Mode</span>
+                    <span className="text-[10px] font-bold text-electric-blue uppercase">Deep Slate (Default)</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400">Collaboration Bot</span>
+                    <span className="text-[10px] font-bold text-green-500 uppercase">Active</span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Change Access Protocol</h4>
+                  <div className="space-y-3">
+                    <input
+                      type="password"
+                      placeholder="Current Protocol"
+                      value={currentPass}
+                      onChange={(e) => setCurrentPass(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none transition-all"
+                    />
+                    <input
+                      type="password"
+                      placeholder="New Protocol"
+                      value={newPass}
+                      onChange={(e) => setNewPass(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none transition-all"
+                    />
+                    <Button onClick={handlePasswordChange} className="w-full h-10 bg-electric-blue text-white text-xs font-bold hover:bg-white hover:text-electric-blue transition-all border-none">
+                      Update Protocol
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <Button onClick={handleLogout} variant="outline" className="w-full border-red-500/20 text-red-400 hover:bg-red-500/10">Terminate Connection (Logout)</Button>
             </div>
           )}
         </section>
       </main>
 
-      {/* AI Sidebar: Intelligence Panel */}
       <aside className="ai-sidebar-container shadow-2xl z-20">
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-electric-blue flex items-center justify-center shadow-blue-glow">
-              <Zap size={18} className="text-white fill-white" />
+            <div className="w-7 h-7 rounded-md bg-electric-blue flex items-center justify-center shadow-blue-glow">
+              <Zap size={14} className="text-white fill-white" />
             </div>
-            <h2 className="font-bold tracking-tight">Intelligence</h2>
+            <h2 className="font-bold text-sm">Intelligence</h2>
           </div>
-          <select
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="bg-slate-900 border border-slate-800 rounded-lg py-1 px-3 text-[10px] font-bold text-slate-400 focus:ring-1 focus:ring-electric-blue outline-none transition-all"
-          >
+          <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-md py-1 px-2 text-[10px] font-bold text-slate-400 focus:ring-1 focus:ring-electric-blue outline-none transition-all">
             <option value="llama-3.3-70b-versatile">Llama 3.3</option>
             <option value="llama-3.2-11b-vision-preview">Vision 3.2</option>
           </select>
         </div>
-
-        <ScrollArea className="flex-1 p-6">
-          <div className="space-y-6">
-            {chatHistory.length === 0 ? (
-              <div className="py-10 text-center space-y-4 px-6">
-                <div className="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto mb-4">
-                  <MessageSquare className="text-slate-700" size={28} />
-                </div>
-                <h3 className="font-bold text-slate-300">Analyzer Online</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">Ask Lab-Bot to interpret screenshots, generate code snippets, or automate category organization.</p>
-              </div>
-            ) : (
-              chatHistory.map((msg, i) => (
-                <div key={i} className={`flex flex-col animate-in ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`p-4 rounded-2xl max-w-[90%] text-sm ${msg.role === 'user'
-                      ? 'bg-electric-blue text-white rounded-tr-none shadow-blue-glow'
-                      : 'bg-slate-900/80 border border-slate-800 text-slate-200 rounded-tl-none prose'
-                    }`}>
-                    <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked(msg.content) as string) }} />
-                  </div>
-                  <span className="text-[9px] font-bold text-slate-600 mt-2 uppercase tracking-widest">{msg.role === 'user' ? 'Scientist' : 'Lab-Bot'}</span>
-                </div>
-              ))
-            )}
-            {isTyping && (
-              <div className="flex items-center gap-3 py-2">
-                <div className="flex gap-1.5">
-                  <div className="w-1.5 h-1.5 bg-electric-blue rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-1.5 h-1.5 bg-electric-blue rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-1.5 h-1.5 bg-electric-blue rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {chatHistory.length === 0 ? (
+            <div className="py-8 text-center space-y-3 px-4">
+              <MessageSquare className="mx-auto text-slate-700" size={20} />
+              <h3 className="font-bold text-sm text-slate-300">Analyzer Online</h3>
+              <p className="text-[10px] text-slate-500 leading-relaxed">Ask Lab-Bot to interpret screenshots, generate code snippets, or automate category organization.</p>
+            </div>
+          ) : (
+            chatHistory.map((msg, i) => (
+              <div key={i} className={`flex flex-col animate-in ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className={`p-3 rounded-2xl max-w-[90%] text-xs ${msg.role === 'user' ? 'bg-electric-blue text-white rounded-tr-none' : 'bg-slate-900/80 border border-slate-800 text-slate-200 rounded-tl-none prose prose-sm'}`}>
+                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(msg.content) as string) }} />
                 </div>
               </div>
-            )}
-          </div>
-        </ScrollArea>
-
-        <div className="p-6 border-t border-slate-800 bg-slate-950/40">
-          <div className="flex items-end gap-3 glass-panel p-2 focus-within:ring-1 focus-within:ring-electric-blue transition-all">
-            <textarea
-              placeholder="Query Lab-Bot..."
-              value={chatMessage}
-              onChange={(e) => setChatMessage(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }}
-              className="flex-1 bg-transparent border-none text-slate-100 text-sm p-3 outline-none resize-none max-h-32 min-h-[44px] font-medium"
-            />
-            <Button
-              size="icon"
-              onClick={onSendMessage}
-              disabled={!chatMessage.trim() || !selectedUser}
-              className="h-10 w-10 bg-electric-blue hover:bg-white hover:text-electric-blue transition-all shadow-blue-glow rounded-xl"
-            >
+            ))
+          )}
+        </div>
+        <div className="p-4 border-t border-slate-800 bg-slate-950/40">
+          <div className="flex items-end gap-2 glass-panel p-1.5 focus-within:ring-1 focus-within:ring-electric-blue transition-all">
+            <textarea placeholder="Query Lab-Bot..." value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} className="flex-1 bg-transparent border-none text-slate-100 text-xs p-2.5 outline-none resize-none max-h-24 min-h-[36px] font-medium" />
+            <Button size="icon" onClick={onSendMessage} disabled={!chatMessage.trim() || !selectedUser} className="h-8 w-8 bg-electric-blue rounded-lg shadow-blue-glow">
               <Send size={18} />
             </Button>
           </div>
         </div>
       </aside>
 
-      {/* Lightbox Enhancement */}
       {lightbox && (
-        <div
-          className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-[100] flex items-center justify-center p-8 transition-all animate-in"
-          onClick={() => setLightbox(null)}
-        >
-          <Button variant="outline" size="icon" className="absolute top-8 right-8 rounded-full border-slate-800 bg-slate-900 transition-transform hover:scale-110">
+        <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-[100] flex items-center justify-center p-8 transition-all animate-in" onClick={() => setLightbox(null)}>
+          <Button variant="outline" size="icon" className="absolute top-8 right-8 rounded-full border-slate-800 bg-slate-900">
             <X size={24} />
           </Button>
-          <img
-            src={`data:${lightbox.type};base64,${lightbox.data}`}
-            alt={lightbox.name}
-            className="max-w-full max-h-full object-contain rounded-2xl shadow-blue-glow ring-1 ring-white/10"
-          />
+          <img src={`data:${lightbox.type};base64,${lightbox.data}`} alt={lightbox.name} className="max-w-full max-h-full object-contain rounded-2xl shadow-blue-glow ring-1 ring-white/10" />
         </div>
       )}
+
+      {contextMenu.isOpen && contextMenu.item && (
+        <div className="fixed z-[150] w-48 bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-xl shadow-2xl py-2 flex flex-col animate-in duration-200" style={{ top: Math.min(contextMenu.y, window.innerHeight - 100), left: Math.min(contextMenu.x, window.innerWidth - 200) }} onClick={(e) => e.stopPropagation()}>
+          <button className="text-left px-4 py-2 text-sm text-slate-300 hover:bg-electric-blue/10 hover:text-electric-blue flex items-center gap-2" onClick={() => { setContextMenu({ isOpen: false, x: 0, y: 0, item: null }); if (contextMenu.item?.type === 'folder') renameFolder(contextMenu.item.id, contextMenu.item.name); else renameFile(contextMenu.item.id, contextMenu.item.name); }}>
+            <PenLine size={14} /> Rename
+          </button>
+        </div>
+      )}
+
+      <Dialog open={modalConfig.isOpen} onOpenChange={(isOpen) => !isOpen && setModalConfig(prev => ({ ...prev, isOpen: false }))}>
+        <DialogContent className="glass-panel border-slate-700 bg-slate-950/90 text-slate-100 sm:max-w-md pointer-events-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl tracking-tight">{modalConfig.title}</DialogTitle>
+            {modalConfig.description && <DialogDescription className="text-slate-400 mt-2 text-sm">{modalConfig.description}</DialogDescription>}
+          </DialogHeader>
+          {modalConfig.type === 'prompt' && (
+            <div className="py-4">
+              <input type="text" autoFocus value={modalConfig.inputValue} onChange={(e) => setModalConfig(prev => ({ ...prev, inputValue: e.target.value }))} onKeyDown={(e) => { if (e.key === 'Enter') { modalConfig.onConfirm(modalConfig.inputValue); setModalConfig(prev => ({ ...prev, isOpen: false })); } }} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none" />
+            </div>
+          )}
+          <DialogFooter className="gap-2 mt-4">
+            <Button variant="outline" onClick={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}>Cancel</Button>
+            <Button onClick={() => { modalConfig.onConfirm(modalConfig.inputValue); setModalConfig(prev => ({ ...prev, isOpen: false })); }} className="bg-electric-blue text-white shadow-blue-glow border-none">{modalConfig.type === 'prompt' ? 'Save Changes' : 'Confirm Action'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

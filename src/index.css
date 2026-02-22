@@ -93,7 +93,7 @@
 
 /* AI Sidebar specialized styles */
 .ai-sidebar-container {
-  @apply flex flex-col h-full bg-slate-950/80 backdrop-blur-xl border-l border-slate-800 w-[400px];
+  @apply flex flex-col h-full bg-slate-950/80 backdrop-blur-xl border-l border-slate-800 w-[320px];
 }
 
 /* Animation presets */

@@ -105,6 +105,40 @@ app.put('/api/users/:id', async (req, res) => {
   }
 });
 
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { rrn, password } = req.body;
+    const user = await db.collection('users').findOne({ rrn, password });
+    if (user) {
+      res.json({ success: true, user });
+    } else {
+      res.status(401).json({ success: false, error: 'Invalid RRN or Access Protocol' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/users/:id/password', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    const user = await db.collection('users').findOne({ _id: new ObjectId(id) });
+    if (!user || user.password !== currentPassword) {
+      return res.status(401).json({ error: 'Incorrect current access protocol' });
+    }
+
+    const result = await db.collection('users').updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { password: newPassword } }
+    );
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.delete('/api/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -144,6 +178,19 @@ app.delete('/api/folders/:id', async (req, res) => {
   }
 });
 
+app.put('/api/folders/:id', async (req, res) => {
+  try {
+    const { name } = req.body;
+    const result = await db.collection('folders').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { name } }
+    );
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Files
 app.get('/api/files/:folderId', async (req, res) => {
   try {
@@ -155,6 +202,18 @@ app.get('/api/files/:folderId', async (req, res) => {
     }
     const query = { $or: queryItems };
     const files = await db.collection('files').find(query).toArray();
+    res.json(files);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/files/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const folders = await db.collection('folders').find({ userId }).toArray();
+    const folderIds = folders.map(f => f._id.toString());
+    const files = await db.collection('files').find({ folderId: { $in: folderIds } }).toArray();
     res.json(files);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -178,6 +237,19 @@ app.post('/api/files', async (req, res) => {
 app.delete('/api/files/:id', async (req, res) => {
   try {
     const result = await db.collection('files').deleteOne({ _id: new ObjectId(req.params.id) });
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/files/:id', async (req, res) => {
+  try {
+    const { name } = req.body;
+    const result = await db.collection('files').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { name } }
+    );
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -383,7 +455,7 @@ app.post('/api/ai/chat', async (req, res) => {
 
     [WORKSPACE STATE]
     User: ${user ? user.name : 'Guest'}
-    Active Category: ${activeCategory ? activeCategory.name : (activeFolder ? activeFolder.name : 'None')}
+    Active Category: ${activeCategory ? activeCategory.name : 'None'}
     All Categories: ${folders.filter(f => !f.parentId).map(f => f.name).join(', ') || 'None'}
     Subfolders: ${folders.filter(f => f.parentId).map(f => f.name).join(', ') || 'None'}
     Current Files: ${files.map(f => f.name).join(', ')}
