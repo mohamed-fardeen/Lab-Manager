@@ -3,6 +3,8 @@ import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import LandingPage from './components/LandingPage';
+import Editor from './components/Editor';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
   Trash2,
@@ -24,7 +26,8 @@ import {
   Database,
   Home,
   Shield,
-  Trash
+  Trash,
+  Menu
 } from 'lucide-react';
 
 /* shadcn-like components (assuming they are set up or I fulfill their role) */
@@ -94,7 +97,7 @@ function App() {
   const [isSelecting, setIsSelecting] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'records' | 'recent' | 'settings' | 'collaboration' | 'admin'>('records');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'records' | 'recent' | 'settings' | 'collaboration' | 'admin' | 'editor'>('records');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginRrn, setLoginRrn] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -105,6 +108,8 @@ function App() {
   const [globalMessage, setGlobalMessage] = useState('');
   const [sharingFileIds, setSharingFileIds] = useState<string[]>([]);
   const [cloningFileId, setCloningFileId] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
@@ -663,8 +668,21 @@ function App() {
   );
 
   const appElement = (
-    <div className="h-screen w-full bg-slate-950 text-slate-100 flex overflow-hidden font-sans selection:bg-electric-blue/30">
-      <aside className="w-[240px] flex flex-col bg-slate-950 border-r border-slate-800 z-30">
+    <div className="h-screen w-full bg-slate-950 text-slate-100 flex overflow-hidden font-sans selection:bg-electric-blue/30 relative">
+      {/* Sidebar Backdrop (Mobile Only) */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      <aside className={`fixed inset-y-0 left-0 w-[240px] flex flex-col bg-slate-950 border-r border-slate-800 z-50 transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
         <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-800">
           <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-lg">
             <Zap size={18} className="text-slate-950" />
@@ -676,12 +694,13 @@ function App() {
           {[
             { id: 'dashboard', label: 'Dashboard', icon: Home },
             { id: 'records', label: 'My Records', icon: Database },
+            { id: 'editor', label: 'Editor', icon: PenLine },
             { id: 'collaboration', label: 'Collaboration', icon: MessageSquare },
             { id: 'recent', label: 'Timeline', icon: Clock },
             { id: 'settings', label: 'Settings', icon: Settings },
             ...(isAdmin ? [{ id: 'admin', label: 'Admin Panel', icon: Shield }] : []),
           ].map((link) => (
-            <button key={link.id} onClick={() => setActiveTab(link.id as any)} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all relative ${activeTab === link.id ? 'bg-electric-blue/10 text-electric-blue' : 'text-slate-500 hover:text-slate-100 hover:bg-slate-900'}`}>
+            <button key={link.id} onClick={() => { setActiveTab(link.id as any); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all relative ${activeTab === link.id ? 'bg-electric-blue/10 text-electric-blue' : 'text-slate-500 hover:text-slate-100 hover:bg-slate-900'}`}>
               {activeTab === link.id && <div className="absolute left-0 w-1 h-5 bg-electric-blue rounded-r-full" />}
               <link.icon size={18} />
               <span className="text-sm font-bold">{link.label}</span>
@@ -707,8 +726,14 @@ function App() {
       </aside>
 
       <main className="flex-1 flex flex-col bg-slate-900/40 relative">
-        <header className="h-14 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-950/20 backdrop-blur-md">
-          <div className="flex items-center gap-4">
+        <header className="h-14 border-b border-slate-800 flex items-center justify-between px-4 md:px-6 bg-slate-950/20 backdrop-blur-md">
+          <div className="flex items-center gap-3 md:gap-4">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 -ml-2 text-slate-400 hover:text-white md:hidden"
+            >
+              <Menu size={20} />
+            </button>
             {selectedFolder && activeTab === 'records' && (
               <Button variant="outline" size="sm" onClick={() => setSelectedFolder(folders.find(f => f._id === selectedFolder)?.parentId || null)} className="rounded-full border-slate-800 h-8 px-3 text-xs">
                 <ArrowLeft size={14} className="mr-1.5" /> Back
@@ -720,6 +745,7 @@ function App() {
               {activeTab === 'collaboration' && 'Collaboration Hub'}
               {activeTab === 'settings' && 'System Configuration'}
               {activeTab === 'admin' && 'Administrative Command Center'}
+              {activeTab === 'editor' && 'Lab Record Editor'}
               {activeTab === 'records' && (selectedFolder ? folders.find(f => f._id === selectedFolder)?.name : 'Lab Categories')}
               {activeTab === 'collaboration' && (
                 <div className="flex items-center gap-2">
@@ -766,13 +792,13 @@ function App() {
               {selectedFolder && (
                 <>
                   {selectedFiles.length > 0 && (
-                    <div className="flex items-center justify-between bg-electric-blue/10 border border-electric-blue/30 rounded-2xl p-4 mb-6 shadow-blue-glow animate-in">
-                      <span className="font-bold text-electric-blue">{selectedFiles.length} file(s) selected</span>
-                      <div className="flex gap-3">
-                        <Button variant="outline" size="sm" onClick={() => setSelectedFiles([])}>Cancel</Button>
-                        <Button variant="secondary" size="sm" onClick={() => { setSharingFileIds(selectedFiles); setActiveTab('collaboration'); }} className="bg-electric-blue/20 text-electric-blue border-electric-blue/30"><Send size={14} className="mr-2" /> Share</Button>
-                        <Button variant="secondary" size="sm" onClick={bulkDownloadFiles} className="bg-electric-blue text-white shadow-blue-glow"><Download size={14} className="mr-2" /> Download</Button>
-                        <Button variant="outline" size="sm" onClick={bulkDeleteFiles} className="text-red-400 border-red-500/30">Delete</Button>
+                    <div className="flex flex-wrap items-center justify-between bg-electric-blue/10 border border-electric-blue/30 rounded-2xl p-3 md:p-4 mb-6 shadow-blue-glow animate-in gap-3">
+                      <span className="font-bold text-electric-blue text-sm md:text-base">{selectedFiles.length} file(s) selected</span>
+                      <div className="flex flex-wrap gap-2 md:gap-3 justify-center sm:justify-end w-full sm:w-auto">
+                        <Button variant="outline" size="sm" onClick={() => setSelectedFiles([])} className="h-8 md:h-9 flex-1 sm:flex-none text-[10px] md:text-xs">Cancel</Button>
+                        <Button variant="secondary" size="sm" onClick={() => { setSharingFileIds(selectedFiles); setActiveTab('collaboration'); }} className="h-8 md:h-9 flex-1 sm:flex-none text-[10px] md:text-xs bg-electric-blue/20 text-electric-blue border-electric-blue/30"><Send size={12} className="mr-1 md:mr-2" /> Share</Button>
+                        <Button variant="secondary" size="sm" onClick={bulkDownloadFiles} className="h-8 md:h-9 flex-1 sm:flex-none text-[10px] md:text-xs bg-electric-blue text-white shadow-blue-glow"><Download size={12} className="mr-1 md:mr-2" /> Download</Button>
+                        <Button variant="outline" size="sm" onClick={bulkDeleteFiles} className="h-8 md:h-9 flex-1 sm:flex-none text-[10px] md:text-xs text-red-400 border-red-500/30">Delete</Button>
                       </div>
                     </div>
                   )}
@@ -898,15 +924,36 @@ function App() {
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white/20" onClick={() => {
-                              const f = allFiles.find(af => af._id === file._id);
-                              if (f) {
-                                const link = document.createElement('a');
-                                link.href = `data:${f.type};base64,${f.data}`;
-                                link.download = f.name;
-                                link.click();
-                              } else {
-                                alert('Synchronizing record content...');
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white/20" onClick={async () => {
+                              let f = allFiles.find(af => af._id === file._id);
+                              if (!f) {
+                                try {
+                                  const res = await fetch(`/api/records/raw/${file._id}`);
+                                  if (res.ok) {
+                                    f = await res.json();
+                                  } else {
+                                    const errData = await res.json();
+                                    alert(`Download Error: ${errData.error || res.statusText}`);
+                                  }
+                                } catch (e: any) { 
+                                  console.error(e);
+                                  alert(`Network error while fetching shared file: ${e.message}`);
+                                }
+                              }
+
+                              if (f && f.data) {
+                                try {
+                                  const link = document.createElement('a');
+                                  link.href = `data:${f.type};base64,${f.data}`;
+                                  link.download = f.name;
+                                  document.body.appendChild(link); // Append for mobile compatibility
+                                  link.click();
+                                  document.body.removeChild(link);
+                                } catch (downloadErr: any) {
+                                  alert(`Browser blocked download: ${downloadErr.message}`);
+                                }
+                              } else if (f && !f.data) {
+                                alert('Error: Record content is missing or corrupted.');
                               }
                             }}>
                               <Download size={14} />
@@ -1004,7 +1051,6 @@ function App() {
               </div>
             </div>
           )}
-
           {activeTab === 'settings' && (
             <div className="max-w-md mx-auto py-10 space-y-6 animate-in">
               <div className="glass-panel p-6 border-slate-800 space-y-6">
@@ -1046,48 +1092,144 @@ function App() {
               <Button onClick={handleLogout} variant="outline" className="w-full border-red-500/20 text-red-400 hover:bg-red-500/10">Terminate Connection (Logout)</Button>
             </div>
           )}
+
+          {activeTab === 'editor' && (
+            <div className="flex-1 overflow-hidden h-full p-4 md:p-6 flex flex-col items-center">
+              <Editor 
+                defaultWatermark={users.find(u => u._id === selectedUser)?.rrn || 'DRAFT'}
+                onSave={(name, data, type) => {
+                  if (!selectedFolder) {
+                    alert("Please select a category first in the 'My Records' tab.");
+                    setActiveTab('records');
+                    return;
+                  }
+                  // We'll use a better notification later, for now simple alert
+                  fetch('/api/files', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      name,
+                      type,
+                      size: 25600, // Dummy size
+                      data: "ZHVtbXktZGF0YQ==", // 'dummy-data' in b64
+                      added: Date.now(),
+                      folderId: selectedFolder
+                    })
+                  }).then(() => {
+                    alert("Record successfully saved to vault.");
+                    loadFiles(selectedFolder);
+                    setActiveTab('records');
+                  });
+                }} 
+              />
+            </div>
+          )}
         </section>
       </main>
 
-      <aside className="ai-sidebar-container shadow-2xl z-20">
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-md bg-electric-blue flex items-center justify-center shadow-blue-glow">
-              <Zap size={14} className="text-white fill-white" />
-            </div>
-            <h2 className="font-bold text-sm">Intelligence</h2>
-          </div>
-          <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-md py-1 px-2 text-[10px] font-bold text-slate-400 focus:ring-1 focus:ring-electric-blue outline-none transition-all">
-            <option value="llama-3.3-70b-versatile">Llama 3.3</option>
-            <option value="llama-3.2-11b-vision-preview">Vision 3.2</option>
-          </select>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {chatHistory.length === 0 ? (
-            <div className="py-8 text-center space-y-3 px-4">
-              <MessageSquare className="mx-auto text-slate-700" size={20} />
-              <h3 className="font-bold text-sm text-slate-300">Analyzer Online</h3>
-              <p className="text-[10px] text-slate-500 leading-relaxed">Ask Lab-Bot to interpret screenshots, generate code snippets, or automate category organization.</p>
-            </div>
-          ) : (
-            chatHistory.map((msg, i) => (
-              <div key={i} className={`flex flex-col animate-in ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <div className={`p-3 rounded-2xl max-w-[90%] text-xs ${msg.role === 'user' ? 'bg-electric-blue text-white rounded-tr-none' : 'bg-slate-900/80 border border-slate-800 text-slate-200 rounded-tl-none prose prose-sm'}`}>
-                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(msg.content) as string) }} />
-                </div>
-              </div>
-            ))
+      {/* Floating AI Assistant FAB */}
+      {isAuthenticated && (
+        <button
+          onClick={() => setIsChatOpen(!isChatOpen)}
+          className="ai-fab"
+          title="Query Lab-Bot"
+        >
+          {isChatOpen ? <X size={24} /> : <MessageSquare size={24} />}
+          {!isChatOpen && (
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-slate-950 animate-pulse" />
           )}
-        </div>
-        <div className="p-4 border-t border-slate-800 bg-slate-950/40">
-          <div className="flex items-end gap-2 glass-panel p-1.5 focus-within:ring-1 focus-within:ring-electric-blue transition-all">
-            <textarea placeholder="Query Lab-Bot..." value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} className="flex-1 bg-transparent border-none text-slate-100 text-xs p-2.5 outline-none resize-none max-h-24 min-h-[36px] font-medium" />
-            <Button size="icon" onClick={onSendMessage} disabled={!chatMessage.trim() || !selectedUser} className="h-8 w-8 bg-electric-blue rounded-lg shadow-blue-glow">
-              <Send size={18} />
-            </Button>
-          </div>
-        </div>
-      </aside>
+        </button>
+      )}
+
+      {/* AI Assistant Overlay */}
+      <AnimatePresence>
+        {isChatOpen && isAuthenticated && (
+          <motion.aside
+            initial={{ opacity: 0, y: 20, scale: 0.95, transformOrigin: 'bottom right' }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="ai-assistant-overlay"
+          >
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+              <div className="flex items-center gap-3">
+                <div className="w-7 h-7 rounded-md bg-electric-blue flex items-center justify-center shadow-blue-glow">
+                  <Zap size={14} className="text-white fill-white" />
+                </div>
+                <h2 className="font-bold text-sm">Lab-Bot Intelligence</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="bg-slate-900 border border-slate-800 rounded-md py-1 px-2 text-[10px] font-bold text-slate-400 focus:ring-1 focus:ring-electric-blue outline-none transition-all"
+                >
+                  <option value="llama-3.3-70b-versatile">Llama 3.3</option>
+                  <option value="llama-3.2-11b-vision-preview">Vision 3.2</option>
+                </select>
+                <button
+                  onClick={() => setIsChatOpen(false)}
+                  className="text-slate-500 hover:text-white transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
+              {chatHistory.length === 0 ? (
+                <div className="py-12 text-center space-y-4 px-6">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-2">
+                    <MessageSquare className="text-slate-500" size={24} />
+                  </div>
+                  <h3 className="font-bold text-sm text-slate-300">Analyzer Sequence Online</h3>
+                  <p className="text-[10px] text-slate-500 leading-relaxed uppercase tracking-widest font-bold">
+                    System ready for discovery analysis.
+                  </p>
+                </div>
+              ) : (
+                chatHistory.map((msg, i) => (
+                  <div key={i} className={`flex flex-col animate-in ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    <div className={`p-3 rounded-2xl max-w-[90%] text-xs ${msg.role === 'user' ? 'bg-electric-blue text-white rounded-tr-none shadow-blue-glow' : 'bg-slate-800/50 border border-slate-800 text-slate-200 rounded-tl-none prose prose-sm'}`}>
+                      <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(msg.content) as string) }} />
+                    </div>
+                  </div>
+                ))
+              )}
+              {isTyping && (
+                <div className="flex items-center gap-2 text-slate-500 px-2">
+                  <RefreshCcw size={12} className="animate-spin" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Analyzing Lab Data...</span>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-slate-800 bg-slate-950/60 backdrop-blur-md">
+              <div className="flex items-end gap-2 glass-panel p-1.5 focus-within:ring-1 focus-within:ring-electric-blue transition-all bg-slate-900/80">
+                <textarea
+                  placeholder="Ask Lab-Bot..."
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      onSendMessage();
+                    }
+                  }}
+                  className="flex-1 bg-transparent border-none text-slate-100 text-xs p-2.5 outline-none resize-none max-h-32 min-h-[40px] font-medium"
+                />
+                <Button
+                  size="icon"
+                  onClick={onSendMessage}
+                  disabled={!chatMessage.trim() || !selectedUser || isTyping}
+                  className="h-10 w-10 bg-electric-blue rounded-xl shadow-blue-glow flex-shrink-0"
+                >
+                  <Send size={18} />
+                </Button>
+              </div>
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
 
       {lightbox && (
         <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-[100] flex items-center justify-center p-8 transition-all animate-in" onClick={() => setLightbox(null)}>

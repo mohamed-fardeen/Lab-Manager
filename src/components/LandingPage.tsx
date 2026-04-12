@@ -1,6 +1,6 @@
 import React, { useRef, Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, ArrowRight, Database, Cpu, Monitor, Server, Terminal, ShieldCheck, Activity, Network } from 'lucide-react';
+import { Zap, Database, Cpu, Monitor, Server, Terminal, ShieldCheck, Activity, Network } from 'lucide-react';
 import ThreeCanvas from './ThreeCanvas';
 
 interface LandingPageProps {
@@ -33,7 +33,7 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
             opacity: 1,
             y: 0,
             scale: 1,
-            transition: { duration: 0.6, ease: "easeOut" }
+            transition: { duration: 0.6 }
         }
     };
 
@@ -49,7 +49,7 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
             <div className="fixed inset-0 z-[1] pointer-events-none opacity-[0.05] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
             {/* Sticky/Fixed Navigation */}
-            <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-12 py-8 max-w-7xl mx-auto backdrop-blur-md bg-[#020617]/20">
+            <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-6 md:px-12 py-4 md:py-8 max-w-7xl mx-auto backdrop-blur-md bg-[#020617]/20">
                 <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -58,7 +58,7 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
                     <div className="w-10 h-10 rounded-xl bg-electric-blue/20 border border-electric-blue/40 flex items-center justify-center shadow-[0_0_20px_rgba(59,130,246,0.2)]">
                         <Terminal size={20} className="text-electric-blue" />
                     </div>
-                    <span className="text-xl font-black tracking-widest font-orbitron bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-500">TERMINAL_SYNC</span>
+                    <span className="text-lg md:text-xl font-black tracking-widest font-orbitron bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-500">TERMINAL_SYNC</span>
                 </motion.div>
 
                 <div className="hidden lg:flex items-center gap-16">
@@ -83,7 +83,7 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={onLoginClick}
-                    className="px-8 py-3 rounded-xl bg-electric-blue text-white font-black text-[9px] tracking-[0.3em] uppercase shadow-lg hover:shadow-blue-glow transition-all"
+                    className="px-6 md:px-8 py-2.5 md:py-3 rounded-xl bg-electric-blue text-white font-black text-[8px] md:text-[9px] tracking-[0.2em] md:tracking-[0.3em] uppercase shadow-lg hover:shadow-blue-glow transition-all whitespace-nowrap"
                 >
                     System Entry
                 </motion.button>
@@ -105,7 +105,7 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
 
                         <motion.h1
                             variants={itemVariants}
-                            className="text-7xl md:text-[10rem] font-black tracking-tighter leading-[0.85] mb-14 font-orbitron text-white"
+                            className="text-5xl sm:text-7xl md:text-[10rem] font-black tracking-tighter leading-[0.85] mb-10 md:mb-14 font-orbitron text-white"
                         >
                             <span className="block opacity-40">CONTROL</span>
                             <span className="block italic text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-500 pb-2">THE LAB.</span>
@@ -116,17 +116,17 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
                             Synchronize hardware nodes and monitor real-time throughput.
                         </motion.p>
 
-                        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-8 justify-center items-center">
+                        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-6 md:gap-8 justify-center items-center">
                             <button
                                 onClick={onLoginClick}
-                                className="group relative px-14 py-6 bg-electric-blue text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] overflow-hidden shadow-[0_0_50px_rgba(59,130,246,0.3)] transition-all hover:scale-105 active:scale-95"
+                                className="group relative w-full sm:w-auto px-10 md:px-14 py-4 md:py-6 bg-electric-blue text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] overflow-hidden shadow-[0_0_50px_rgba(59,130,246,0.3)] transition-all hover:scale-105 active:scale-95"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
-                                <span className="relative flex items-center gap-4">
+                                <span className="relative flex items-center justify-center gap-4">
                                     Establish Link <Zap size={18} />
                                 </span>
                             </button>
-                            <button className="px-14 py-6 bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+                            <button className="w-full sm:w-auto px-10 md:px-14 py-4 md:py-6 bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
                                 Resource Map
                             </button>
                         </motion.div>
@@ -134,7 +134,7 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
                 </section>
 
                 {/* Features Section */}
-                <section className="max-w-7xl mx-auto px-12 py-32">
+                <section className="max-w-7xl mx-auto px-6 md:px-12 py-16 md:py-32">
                     <motion.div
                         initial={{ opacity: 0, y: 50 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -149,7 +149,7 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
                             <motion.div
                                 key={i}
                                 whileHover={{ y: -10 }}
-                                className="p-12 rounded-3xl bg-slate-900/10 border border-slate-800/50 hover:border-electric-blue/40 transition-all duration-500 text-left backdrop-blur-sm"
+                                className="p-8 md:p-12 rounded-3xl bg-slate-900/10 border border-slate-800/50 hover:border-electric-blue/40 transition-all duration-500 text-left backdrop-blur-sm"
                             >
                                 <div className={`w-14 h-14 rounded-2xl bg-slate-950 flex items-center justify-center mb-8 border border-white/5 ${feature.color}`}>
                                     <feature.icon size={28} />
@@ -162,8 +162,8 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
                 </section>
 
                 {/* Architecture Section */}
-                <section className="px-12 py-48 bg-slate-950/20 backdrop-blur-3xl border-y border-white/5">
-                    <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-32 items-center">
+                <section className="px-6 md:px-12 py-24 md:py-48 bg-slate-950/20 backdrop-blur-3xl border-y border-white/5">
+                    <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-20 md:gap-32 items-center">
                         <div className="space-y-12">
                             <div className="space-y-4">
                                 <span className="text-electric-blue font-black uppercase tracking-[0.6em] text-[10px]">Infrastructure</span>
@@ -175,7 +175,7 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
                                     { title: 'Security Protocol', text: 'Hardware-level authentication.', icon: ShieldCheck },
                                     { title: 'Uptime Metrics', text: 'Real-time telemetry reports.', icon: Activity }
                                 ].map((item, i) => (
-                                    <div key={i} className="flex gap-8 group">
+                                    <div key={i} className="flex gap-4 md:gap-8 group">
                                         <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center shrink-0 border border-white/5 group-hover:border-electric-blue/40 transition-all">
                                             <item.icon size={20} className="text-slate-500 group-hover:text-electric-blue" />
                                         </div>
@@ -187,9 +187,9 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
                                 ))}
                             </div>
                         </div>
-                        <div className="relative aspect-square glass-panel rounded-[3rem] flex items-center justify-center p-20 border-white/10">
+                        <div className="relative aspect-square glass-panel rounded-[2rem] md:rounded-[3rem] flex items-center justify-center p-10 md:p-20 border-white/10">
                             <motion.div animate={{ y: [0, -20, 0] }} transition={{ duration: 4, repeat: Infinity }}>
-                                <Server size={220} className="text-electric-blue opacity-80" strokeWidth={0.5} />
+                                <Server size={140} className="md:size-[220px] text-electric-blue opacity-80" strokeWidth={0.5} />
                             </motion.div>
                         </div>
                     </div>

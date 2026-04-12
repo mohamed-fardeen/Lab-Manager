@@ -255,6 +255,21 @@ app.post('/api/files', async (req, res) => {
   }
 });
 
+app.get('/api/records/raw/:id', async (req, res) => {
+  console.log(`[GET] Fetching raw record for ID: ${req.params.id}`);
+  try {
+    const file = await db.collection('files').findOne({ _id: new ObjectId(req.params.id) });
+    if (!file) {
+      console.log(`[404] Record not found: ${req.params.id}`);
+      return res.status(404).json({ error: 'Record not found in database' });
+    }
+    res.json(file);
+  } catch (error) {
+    console.error(`[500] Error fetching record: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.delete('/api/files/:id', async (req, res) => {
   try {
     const result = await db.collection('files').deleteOne({ _id: new ObjectId(req.params.id) });
