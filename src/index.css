@@ -144,3 +144,56 @@
 .prose p {
   @apply mb-4;
 }
+
+@media print {
+  @page {
+    margin: 0;
+    size: A4 portrait;
+  }
+
+  body, html {
+    margin: 0;
+    padding: 0;
+    background: white;
+    color: black;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .no-print-bg {
+    background: none !important;
+  }
+
+  .print-page-border {
+    position: fixed;
+    top: 15mm;
+    bottom: 15mm;
+    left: 15mm;
+    right: 15mm;
+    border: 2px solid black;
+    z-index: -100;
+    pointer-events: none;
+  }
+
+  .print-watermark {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 100px;
+    opacity: 0.05;
+    z-index: -99;
+    white-space: nowrap;
+    pointer-events: none;
+    color: black;
+  }
+
+  textarea {
+    overflow: hidden !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+  }
+}

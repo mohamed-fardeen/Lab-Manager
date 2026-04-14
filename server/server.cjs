@@ -607,6 +607,121 @@ app.post('/api/ai/chat', async (req, res) => {
   }
 });
 
+// AI Record Generation (3 Parallel Streams)
+app.post('/api/generate-record', async (req, res) => {
+  try {
+    const { programName, programNumber, date, language, inputType, algorithmType, constraints, userName, userRrn } = req.body;
+
+    const basePrompt = `User: ${userName || 'Student'} (RRN: ${userRrn || 'Unknown'})
+Program: ${programName}
+Language: ${language}
+Input Type: ${inputType}
+Algorithm Type: ${algorithmType}
+Constraints: ${constraints || 'None'}
+IMPORTANT: The program must include logic to count 'comparisons' made during execution, and output the total number of comparisons perfectly.`;
+
+    // Stream 1: Theory
+    const p1 = fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: `Generate JSON ONLY. Structure: { "aim": "", "algorithm": "" }. Rules: 
+- Aim must explicitly be a full sentence starting with "To write a ${language} program to implement..."
+- Algorithm must strictly follow user-selected type. 
+- If 'pseudocode', use rigid programming pseudocode (e.g., Procedure, variables, BEGIN, IF, END, RETURN). NO plain english.
+- If 'steps', use numbered plain english steps. 
+- No markdown.` },
+          { role: 'user', content: basePrompt }
+        ],
+        temperature: 0.4,
+        response_format: { type: "json_object" }
+      })
+    });
+
+    // Stream 2: Implementation
+    const p2 = fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: `Generate JSON ONLY. Structure: { "code": "", "output": "", "result": "" }. Rules:
+- Code must perfectly match language and include comparison counting logic.
+- If Input Type is "User Input (Dynamic)", the code MUST prompt the user for data at runtime via standard input methods (e.g. scanf, cin, input()). DO NOT hardcode array elements or values!
+- Output MUST perfectly reflect a terminal execution of the code. 
+- Output MUST have these exact lines at the very top (notice EXACTLY ONE blank line after RRN):
+Name: ${userName || 'Student'}
+RRN: ${userRrn || 'Unknown'}
+
+(Execution output continues immediately here without large gaps)
+
+- Result should be a standard 1-sentence academic conclusion (e.g. "Thus the program was executed successfully...").` },
+          { role: 'user', content: basePrompt }
+        ],
+        temperature: 0.4,
+        response_format: { type: "json_object" }
+      })
+    });
+
+    // Stream 3: Viva Questions
+    const p3 = fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: `Generate JSON ONLY. Structure: { "vivaQuestions": [{ "question": "...", "answer": "..." }] }. Rules:
+- Generate EXACTLY 5 viva questions.
+- Questions must be directly related to the program asked.
+- Answers MUST be concise, strictly 1-2 lines.` },
+          { role: 'user', content: basePrompt }
+        ],
+        temperature: 0.6,
+        response_format: { type: "json_object" }
+      })
+    });
+
+    const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
+
+    const parseJSON = async (resObj) => {
+      const data = await resObj.json();
+      if (data.error) throw new Error(data.error.message || 'Groq API Error');
+      const text = data.choices[0].message.content;
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) return JSON.parse(match[0]);
+        throw new Error('Failed to parse AI response');
+      }
+    };
+
+    const d1 = await parseJSON(r1);
+    const d2 = await parseJSON(r2);
+    const d3 = await parseJSON(r3);
+
+    const result = {
+      programNumber: programNumber || '',
+      date: date || '',
+      title: programName,
+      aim: d1.aim || '',
+      algorithm: d1.algorithm || '',
+      code: d2.code || '',
+      output: d2.output || '',
+      result: d2.result || '',
+      vivaQuestions: d3.vivaQuestions || []
+    };
+
+    res.json(result);
+  } catch (error) {
+    console.error('AI Multi-Stream Generation Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 // Catch all handler: send back React's index.html file for any non-API routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'));

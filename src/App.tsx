@@ -5,6 +5,8 @@ import DOMPurify from 'dompurify';
 import LandingPage from './components/LandingPage';
 import Editor from './components/Editor';
 import { motion, AnimatePresence } from 'framer-motion';
+import ProgramGeneratorModal from './components/ProgramGeneratorModal';
+import RecordEditor, { RecordData } from './components/RecordEditor';
 import {
   Plus,
   Trash2,
@@ -27,7 +29,8 @@ import {
   Home,
   Shield,
   Trash,
-  Menu
+  Menu,
+  Sparkles
 } from 'lucide-react';
 
 /* shadcn-like components (assuming they are set up or I fulfill their role) */
@@ -129,6 +132,12 @@ function App() {
     item: { id: string; name: string; type: 'folder' | 'file' } | null;
   }>({ isOpen: false, x: 0, y: 0, item: null });
 
+  // AI Record Generation States
+  const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false);
+  const [activeRecordData, setActiveRecordData] = useState<RecordData | null>(null);
+  const [isGeneratingRecord, setIsGeneratingRecord] = useState(false);
+  const [lastSearchParams, setLastSearchParams] = useState<any>(null);
+
   useEffect(() => {
     loadUsers();
   }, []);
@@ -157,6 +166,73 @@ function App() {
       alert('Network error during authentication');
     } finally {
       setLoginLoading(false);
+    }
+  };
+
+  const handleGenerateRecord = async (params: any) => {
+    setIsGeneratingRecord(true);
+    setLastSearchParams(params);
+    const currentUser = users.find((u: any) => u._id === selectedUser);
+    const enrichedParams = { ...params, userName: currentUser?.name || '', userRrn: currentUser?.rrn || '' };
+    try {
+      const res = await fetch('/api/generate-record', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(enrichedParams)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Generation Failed');
+
+      setActiveRecordData({
+        programNumber: data.programNumber || params.programNumber,
+        date: data.date || params.date,
+        programName: data.title || params.programName,
+        aim: data.aim,
+        algorithm: data.algorithm,
+        programCode: data.code,
+        output: data.output,
+        result: data.result,
+        vivaQuestions: data.vivaQuestions
+      });
+      
+      setIsGeneratorModalOpen(false);
+      setActiveTab('editor');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to generate record intelligence: ' + (err as any).message);
+    } finally {
+      setIsGeneratingRecord(false);
+    }
+  };
+
+  const handleRegenerateRecord = async () => {
+    if (!lastSearchParams) return;
+    setIsGeneratingRecord(true);
+    const currentUser = users.find((u: any) => u._id === selectedUser);
+    const enrichedParams = { ...lastSearchParams, userName: currentUser?.name || '', userRrn: currentUser?.rrn || '' };
+    try {
+      const res = await fetch('/api/generate-record', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(enrichedParams)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Regeneration Failed');
+
+      setActiveRecordData(prev => prev ? ({
+        ...prev,
+        aim: data.aim,
+        algorithm: data.algorithm,
+        programCode: data.code,
+        output: data.output,
+        result: data.result,
+        vivaQuestions: data.vivaQuestions
+      }) : null);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to re-sequence DNA strands: ' + (err as any).message);
+    } finally {
+      setIsGeneratingRecord(false);
     }
   };
 
@@ -783,9 +859,12 @@ function App() {
                       <ChevronRight size={16} className="text-slate-700 self-center" />
                     </div>
                   ))}
-                  <Button variant="outline" className="h-auto border-dashed border-2 border-slate-800 py-4 rounded-xl hover:border-electric-blue text-slate-500 flex items-center" onClick={addCategory}>
-                    <Plus size={18} className="mr-2" /> <span className="text-sm">{selectedFolder ? 'New Sub-Category' : 'New Category'}</span>
-                  </Button>
+                  
+                  <div className="flex flex-col gap-4">
+                    <Button variant="outline" className="h-auto border-dashed border-2 border-slate-800 py-4 rounded-xl hover:border-electric-blue text-slate-500 flex items-center" onClick={addCategory}>
+                      <Plus size={18} className="mr-2" /> <span className="text-sm">{selectedFolder ? 'New Sub-Category' : 'New Category'}</span>
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -1094,34 +1173,44 @@ function App() {
           )}
 
           {activeTab === 'editor' && (
-            <div className="flex-1 overflow-hidden h-full p-4 md:p-6 flex flex-col items-center">
-              <Editor 
-                defaultWatermark={users.find(u => u._id === selectedUser)?.rrn || 'DRAFT'}
-                onSave={(name, data, type) => {
-                  if (!selectedFolder) {
-                    alert("Please select a category first in the 'My Records' tab.");
-                    setActiveTab('records');
-                    return;
-                  }
-                  // We'll use a better notification later, for now simple alert
-                  fetch('/api/files', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      name,
-                      type,
-                      size: 25600, // Dummy size
-                      data: "ZHVtbXktZGF0YQ==", // 'dummy-data' in b64
-                      added: Date.now(),
-                      folderId: selectedFolder
-                    })
-                  }).then(() => {
-                    alert("Record successfully saved to vault.");
-                    loadFiles(selectedFolder);
-                    setActiveTab('records');
-                  });
-                }} 
-              />
+            <div className={`flex-1 overflow-hidden h-full flex flex-col ${activeRecordData ? '' : 'p-4 md:p-6 items-center'}`}>
+              {activeRecordData ? (
+                <RecordEditor 
+                  data={activeRecordData}
+                  userRrn={users.find(u => u._id === selectedUser)?.rrn || 'DRAFT'}
+                  onChange={(field, value) => setActiveRecordData(prev => prev ? ({ ...prev, [field]: value }) : null)}
+                  onRegenerate={handleRegenerateRecord}
+                  isGenerating={isGeneratingRecord}
+                />
+              ) : (
+                <Editor 
+                  defaultWatermark={users.find(u => u._id === selectedUser)?.rrn || 'DRAFT'}
+                  onSave={(name, data, type) => {
+                    if (!selectedFolder) {
+                      alert("Please select a category first in the 'My Records' tab.");
+                      setActiveTab('records');
+                      return;
+                    }
+                    // We'll use a better notification later, for now simple alert
+                    fetch('/api/files', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        name,
+                        type,
+                        size: 25600, // Dummy size
+                        data: "ZHVtbXktZGF0YQ==", // 'dummy-data' in b64
+                        added: Date.now(),
+                        folderId: selectedFolder
+                      })
+                    }).then(() => {
+                      alert("Record successfully saved to vault.");
+                      loadFiles(selectedFolder);
+                      setActiveTab('records');
+                    });
+                  }} 
+                />
+              )}
             </div>
           )}
         </section>
@@ -1166,6 +1255,13 @@ function App() {
                   <option value="llama-3.3-70b-versatile">Llama 3.3</option>
                   <option value="llama-3.2-11b-vision-preview">Vision 3.2</option>
                 </select>
+                <button
+                  onClick={() => setIsGeneratorModalOpen(true)}
+                  className="w-7 h-7 flex items-center justify-center rounded-md bg-electric-blue/10 text-electric-blue hover:bg-electric-blue hover:text-white transition-all shadow-blue-glow"
+                  title="Initiate Academic Protocol"
+                >
+                  <Sparkles size={14} />
+                </button>
                 <button
                   onClick={() => setIsChatOpen(false)}
                   className="text-slate-500 hover:text-white transition-colors"
@@ -1301,6 +1397,12 @@ function App() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ProgramGeneratorModal 
+        isOpen={isGeneratorModalOpen}
+        onClose={() => setIsGeneratorModalOpen(false)}
+        onGenerate={handleGenerateRecord}
+        isGenerating={isGeneratingRecord}
+      />
     </div>
   );
 
