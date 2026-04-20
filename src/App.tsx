@@ -1,3 +1,5 @@
+import { api } from './lib/api';
+import { supabase } from './lib/supabase';
 import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { marked } from 'marked';
@@ -39,47 +41,36 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 interface User {
-  _id: string;
+  id: string; // Changed from _id to match Supabase UUID
   name: string;
   rrn?: string;
-  password?: string;
   role?: string;
 }
 
 interface Folder {
-  _id: string;
+  id: string; // Changed from _id
   name: string;
-  parentId?: string;
-  created: number;
-  userId: string;
+  parent_id?: string; // Changed from parentId
+  created_at: string; // Changed from created
+  user_id: string;
 }
 
 interface FileItem {
-  _id: string;
+  id: string;
   name: string;
-  type: string;
+  file_type: string; // Changed from type
   size: number;
-  data: string; // base64
-  added: number;
-  folderId: string;
+  url: string; // Cloudinary URL
+  created_at: string;
+  folder_id: string;
 }
 
 interface Message {
-  _id: string;
-  senderId: string;
-  senderName: string;
+  id: string;
+  sender_id: string;
+  sender_name: string;
   content: string;
-  timestamp: number;
-  file?: {
-    _id: string;
-    name: string;
-    type: string;
-  };
-  files?: {
-    _id: string;
-    name: string;
-    type: string;
-  }[];
+  created_at: string;
 }
 
 function App() {
@@ -113,6 +104,7 @@ function App() {
   const [cloningFileId, setCloningFileId] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [userProfile, setUserProfile] = useState<User | null>(null);
 
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
@@ -139,31 +131,53 @@ function App() {
   const [lastSearchParams, setLastSearchParams] = useState<any>(null);
 
   useEffect(() => {
-    loadUsers();
+    // 1. Check current session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setIsAuthenticated(true);
+        setSelectedUser(session.user.id);
+        loadUsers();
+      }
+    });
+
+    // 2. Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setIsAuthenticated(true);
+        setSelectedUser(session.user.id);
+        loadUsers();
+      } else {
+        setIsAuthenticated(false);
+        setSelectedUser(null);
+        navigate('/');
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleLogin = async () => {
     if (!loginRrn || !loginPassword) return;
     setLoginLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rrn: loginRrn, password: loginPassword })
+      // 🚀 Use Supabase Auth directly
+      const email = `${loginRrn.toLowerCase()}@crescent.education`;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password: loginPassword
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setSelectedUser(data.user._id);
+
+      if (error) throw error;
+
+      if (data.user) {
         setIsAuthenticated(true);
-        setIsAdmin(!!data.isAdmin);
+        setSelectedUser(data.user.id);
         setLoginModalOpen(false);
         navigate('/users');
-      } else {
-        alert(data.error || 'Authentication failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      alert('Network error during authentication');
+      alert(error.message || 'Authentication failed');
     } finally {
       setLoginLoading(false);
     }
@@ -172,16 +186,10 @@ function App() {
   const handleGenerateRecord = async (params: any) => {
     setIsGeneratingRecord(true);
     setLastSearchParams(params);
-    const currentUser = users.find((u: any) => u._id === selectedUser);
+    const currentUser = users.find((u: any) => u.id === selectedUser);
     const enrichedParams = { ...params, userName: currentUser?.name || '', userRrn: currentUser?.rrn || '' };
     try {
-      const res = await fetch('/api/generate-record', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(enrichedParams)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Generation Failed');
+      const data = await api.post('/generate-record', enrichedParams);
 
       setActiveRecordData({
         programNumber: data.programNumber || params.programNumber,
@@ -208,16 +216,10 @@ function App() {
   const handleRegenerateRecord = async () => {
     if (!lastSearchParams) return;
     setIsGeneratingRecord(true);
-    const currentUser = users.find((u: any) => u._id === selectedUser);
+    const currentUser = users.find((u: any) => u.id === selectedUser);
     const enrichedParams = { ...lastSearchParams, userName: currentUser?.name || '', userRrn: currentUser?.rrn || '' };
     try {
-      const res = await fetch('/api/generate-record', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(enrichedParams)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Regeneration Failed');
+      const data = await api.post('/generate-record', enrichedParams);
 
       setActiveRecordData(prev => prev ? ({
         ...prev,
@@ -239,21 +241,13 @@ function App() {
   const handlePasswordChange = async () => {
     if (!currentPass || !newPass) return;
     try {
-      const res = await fetch(`/api/users/${selectedUser}/password`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword: currentPass, newPassword: newPass })
-      });
-      if (res.ok) {
-        alert('Access Protocol updated successfully');
-        setCurrentPass('');
-        setNewPass('');
-      } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to update protocol');
-      }
-    } catch (error) {
+      await api.put(`/users/${selectedUser}/password`, { currentPassword: currentPass, newPassword: newPass });
+      alert('Access Protocol updated successfully');
+      setCurrentPass('');
+      setNewPass('');
+    } catch (error: any) {
       console.error('Password change error:', error);
+      alert(error.message || 'Failed to update protocol');
     }
   };
 
@@ -269,9 +263,7 @@ function App() {
 
   const loadMessages = async () => {
     try {
-      const res = await fetch('/api/messages');
-      if (!res.ok) throw new Error('Failed to fetch messages');
-      const data = await res.json();
+      const data = await api.get('/messages');
       setMessages(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error loading messages:', err);
@@ -288,22 +280,18 @@ function App() {
 
   const sendGlobalMessage = async () => {
     if (!globalMessage.trim() && sharingFileIds.length === 0) return;
-    const user = users.find(u => u._id === selectedUser);
+    const user = users.find(u => u.id === selectedUser);
     const sharedFilesMetadata = sharingFileIds.map(fid => {
-      const f = allFiles.find(af => af._id === fid);
-      return f ? { _id: f._id, name: f.name, type: f.type } : null;
+      const f = allFiles.find(af => af.id === fid);
+      return f ? { id: f.id, name: f.name, type: f.file_type } : null;
     }).filter(Boolean);
 
     try {
-      await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          senderId: selectedUser,
-          senderName: user?.name || 'Researcher',
-          content: globalMessage,
-          files: sharedFilesMetadata
-        })
+      await api.post('/messages', {
+        senderId: selectedUser,
+        senderName: user?.name || 'Researcher',
+        content: globalMessage,
+        files: sharedFilesMetadata
       });
       setGlobalMessage('');
       setSharingFileIds([]);
@@ -316,7 +304,7 @@ function App() {
   const clearAllMessages = async () => {
     if (!window.confirm('Are you sure you want to clear ALL messages globally?')) return;
     try {
-      await fetch('/api/admin/messages', { method: 'DELETE' });
+      await api.delete('/messages');
       loadMessages();
     } catch (err) {
       console.error('Error clearing messages:', err);
@@ -325,7 +313,7 @@ function App() {
 
   const deleteMessage = async (id: string) => {
     try {
-      await fetch(`/api/admin/messages/${id}`, { method: 'DELETE' });
+      await api.delete(`/messages/${id}`);
       loadMessages();
     } catch (err) {
       console.error('Error deleting message:', err);
@@ -334,18 +322,15 @@ function App() {
 
   const cloneFileToFolder = async (fileId: string, targetFolderId: string) => {
     try {
-      const res = await fetch('/api/files/clone', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileId, targetFolderId })
-      });
-      if (res.ok) {
-        alert('Record synchronized to your folder successfully.');
-        setCloningFileId(null);
-        if (selectedUser) loadAllFiles(selectedUser);
-      }
+      await api.post('/files/clone', { fileId, targetFolderId });
+      setCloningFileId(null);
+      if (selectedUser) loadAllFiles(selectedUser);
+      if (selectedFolder) loadFiles(selectedFolder);
+      // Show success feedback inline
+      alert('✅ Record synchronized to your vault successfully!');
     } catch (err) {
-      console.error('Error cloning file:', err);
+      console.error('Error syncing file:', err);
+      alert('❌ Synchronization failed. Please try again.');
     }
   };
 
@@ -365,6 +350,7 @@ function App() {
     if (selectedUser && selectedUser !== lastUserId.current) {
       loadFolders(selectedUser);
       loadAllFiles(selectedUser);
+      loadCurrentProfile(selectedUser);
       lastUserId.current = selectedUser;
     }
   }, [selectedUser]);
@@ -387,8 +373,10 @@ function App() {
 
   async function loadUsers() {
     try {
-      const res = await fetch('/api/users');
-      const data = await res.json();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*');
+      if (error) throw error;
       setUsers(data);
     } catch (error) {
       console.error('Error loading users:', error);
@@ -397,10 +385,24 @@ function App() {
     }
   }
 
+  async function loadCurrentProfile(userId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+      if (error) throw error;
+      setUserProfile(data);
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  }
+
   async function loadFolders(userId: string) {
     try {
-      const res = await fetch(`/api/folders/${userId}`);
-      const data = await res.json();
+      // Backend now gets identity from JWT
+      const data = await api.get(`/folders`);
       setFolders(data);
     } catch (error) {
       console.error('Error loading folders:', error);
@@ -409,8 +411,7 @@ function App() {
 
   async function loadFiles(folderId: string) {
     try {
-      const res = await fetch(`/api/files/${folderId}`);
-      const data = await res.json();
+      const data = await api.get(`/files/folder/${folderId}`);
       setFiles(data);
     } catch (error) {
       console.error('Error loading files:', error);
@@ -419,8 +420,7 @@ function App() {
 
   async function loadAllFiles(userId: string) {
     try {
-      const res = await fetch(`/api/files/user/${userId}`);
-      const data = await res.json();
+      const data = await api.get(`/files`);
       setAllFiles(data);
     } catch (error) {
       console.error('Error loading all files:', error);
@@ -437,19 +437,13 @@ function App() {
       type: 'prompt',
       inputValue: '',
       onConfirm: async (name) => {
-        if (name && selectedUser) {
+        if (name) {
           try {
-            await fetch('/api/folders', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                name,
-                userId: selectedUser,
-                parentId: selectedFolder || null,
-                created: Date.now()
-              })
+            await api.post('/folders', {
+              name,
+              parent_id: selectedFolder || null
             });
-            loadFolders(selectedUser);
+            if (selectedUser) loadFolders(selectedUser);
           } catch (error) {
             console.error('Error adding category:', error);
           }
@@ -468,11 +462,7 @@ function App() {
       onConfirm: async (name) => {
         if (!name || name === currentName) return;
         try {
-          await fetch(`/api/folders/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name })
-          });
+          await api.put(`/folders/${id}`, { name });
           if (selectedUser) loadFolders(selectedUser);
         } catch (error) {
           console.error('Error renaming category:', error);
@@ -490,7 +480,7 @@ function App() {
       inputValue: '',
       onConfirm: async () => {
         try {
-          await fetch(`/api/folders/${id}`, { method: 'DELETE' });
+          await api.delete(`/folders/${id}`);
           if (selectedUser) loadFolders(selectedUser);
           if (selectedFolder === id) setSelectedFolder(null);
         } catch (error) {
@@ -506,28 +496,17 @@ function App() {
 
     for (let i = 0; i < fileList.length; i++) {
       const file = fileList[i];
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(',')[1];
-        try {
-          await fetch('/api/files', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: file.name,
-              type: file.type || 'application/octet-stream',
-              size: file.size,
-              data: base64,
-              added: Date.now(),
-              folderId: selectedFolder
-            })
-          });
-          loadFiles(selectedFolder.toString());
-        } catch (error) {
-          console.error('Error uploading file:', error);
-        }
-      };
-      reader.readAsDataURL(file);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder_id', selectedFolder);
+      
+      try {
+        await api.post('/files/upload', formData);
+        loadFiles(selectedFolder.toString());
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        alert(`Failed to upload ${file.name}`);
+      }
     }
   }
 
@@ -541,7 +520,7 @@ function App() {
       inputValue: '',
       onConfirm: async () => {
         try {
-          await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
+          await api.delete(`/files/${fileId}`);
           loadFiles(selectedFolder.toString());
         } catch (error) {
           console.error('Error deleting file:', error);
@@ -560,11 +539,7 @@ function App() {
       onConfirm: async (name) => {
         if (!name || name === currentName) return;
         try {
-          await fetch(`/api/files/${fileId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name })
-          });
+          await api.put(`/files/${fileId}`, { name });
           if (selectedFolder) loadFiles(selectedFolder.toString());
         } catch (error) {
           console.error('Error renaming file:', error);
@@ -573,11 +548,27 @@ function App() {
     });
   }
 
+  async function downloadFileFromUrl(url: string, filename: string) {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Download failed:', error);
+      window.open(url, '_blank');
+    }
+  }
+
   function downloadFile(file: FileItem) {
-    const link = document.createElement('a');
-    link.href = `data:${file.type};base64,${file.data}`;
-    link.download = file.name;
-    link.click();
+    const cleanName = file.name.replace(/^\d+-/, '');
+    downloadFileFromUrl(file.url, cleanName);
   }
 
   const toggleSelection = (id: string) => {
@@ -603,7 +594,7 @@ function App() {
       onConfirm: async () => {
         try {
           await Promise.all(selectedFiles.map(fileId =>
-            fetch(`/api/files/${fileId}`, { method: 'DELETE' })
+            api.delete(`/files/${fileId}`)
           ));
           loadFiles(selectedFolder.toString());
           setSelectedFiles([]);
@@ -616,7 +607,7 @@ function App() {
 
   function bulkDownloadFiles() {
     selectedFiles.forEach((fileId, i) => {
-      const file = files.find(f => f._id === fileId);
+      const file = allFiles.find(f => f.id === fileId);
       if (file) {
         setTimeout(() => downloadFile(file), i * 300);
       }
@@ -633,22 +624,12 @@ function App() {
     setLoading(true); // Signal activity
 
     try {
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: userMsg,
-          userId: selectedUser,
-          folderId: selectedFolder,
-          model: selectedModel,
-          history: chatHistory
-        })
+      const data = await api.post('/ai/chat', {
+        message: userMsg,
+        folder_id: selectedFolder,
+        model: selectedModel,
+        history: chatHistory
       });
-
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || 'Chat API Error');
-      }
 
       let aiMessage = data.message || 'Error: Empty response';
       setChatHistory(prev => [...prev, { role: 'assistant', content: aiMessage }]);
@@ -692,9 +673,9 @@ function App() {
     }
   };
 
-  const currentFolders = folders.filter(f => selectedFolder ? f.parentId === selectedFolder : !f.parentId);
-  const currentFiles = files.filter(f => selectedFolder ? f.folderId === selectedFolder : !f.folderId);
-  const canUpload = selectedFolder && !folders.some(f => f.parentId === selectedFolder);
+  const currentFolders = folders.filter(f => selectedFolder ? f.parent_id === selectedFolder : !f.parent_id);
+  const currentFiles = files.filter(f => selectedFolder ? f.folder_id === selectedFolder : !f.folder_id);
+  const canUpload = selectedFolder && !folders.some(f => f.parent_id === selectedFolder);
 
   const authElement = (
     <>
@@ -787,12 +768,12 @@ function App() {
         <div className="p-4 mt-auto">
           <div className="glass-panel p-3 rounded-xl border-slate-800 flex items-center gap-3">
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-slate-800 text-slate-300 text-[10px]">
-                {users.find(u => u._id === selectedUser)?.name.charAt(0).toUpperCase() || 'S'}
+              <AvatarFallback className="bg-slate-800 text-slate-300 text-xs font-bold">
+                {userProfile?.name?.charAt(0).toUpperCase() || 'S'}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 truncate">
-              <p className="text-[11px] font-bold text-white truncate">{users.find(u => u._id === selectedUser)?.name || 'Researcher'}</p>
+              <p className="text-[11px] font-bold text-white truncate">{userProfile?.name || 'Researcher'}</p>
             </div>
             <button onClick={handleLogout} className="text-slate-600 hover:text-red-400 p-1">
               <LogOut size={16} />
@@ -811,7 +792,7 @@ function App() {
               <Menu size={20} />
             </button>
             {selectedFolder && activeTab === 'records' && (
-              <Button variant="outline" size="sm" onClick={() => setSelectedFolder(folders.find(f => f._id === selectedFolder)?.parentId || null)} className="rounded-full border-slate-800 h-8 px-3 text-xs">
+              <Button variant="outline" size="sm" onClick={() => setSelectedFolder(folders.find(f => f.id === selectedFolder)?.parent_id || null)} className="rounded-full border-slate-800 h-8 px-3 text-xs">
                 <ArrowLeft size={14} className="mr-1.5" /> Back
               </Button>
             )}
@@ -822,7 +803,7 @@ function App() {
               {activeTab === 'settings' && 'System Configuration'}
               {activeTab === 'admin' && 'Administrative Command Center'}
               {activeTab === 'editor' && 'Lab Record Editor'}
-              {activeTab === 'records' && (selectedFolder ? folders.find(f => f._id === selectedFolder)?.name : 'Lab Categories')}
+              {activeTab === 'records' && (selectedFolder ? folders.find(f => f.id === selectedFolder)?.name : 'Lab Categories')}
               {activeTab === 'collaboration' && (
                 <div className="flex items-center gap-2">
                   <Button variant="ghost" size="sm" onClick={loadMessages} className="text-slate-400 hover:text-electric-blue">
@@ -848,13 +829,13 @@ function App() {
               {(!selectedFolder || currentFolders.length > 0) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                   {currentFolders.map(folder => (
-                    <div key={folder._id} className="glass-panel p-4 hover-glow cursor-pointer group flex items-start gap-3 animate-in" onClick={() => setSelectedFolder(folder._id)} onContextMenu={(e) => { e.preventDefault(); setContextMenu({ isOpen: true, x: e.clientX, y: e.clientY, item: { id: folder._id, name: folder.name, type: 'folder' } }); }}>
+                    <div key={folder.id} className="glass-panel p-4 hover-glow cursor-pointer group flex items-start gap-3 animate-in" onClick={() => setSelectedFolder(folder.id)} onContextMenu={(e) => { e.preventDefault(); setContextMenu({ isOpen: true, x: e.clientX, y: e.clientY, item: { id: folder.id, name: folder.name, type: 'folder' } }); }}>
                       <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center group-hover:bg-electric-blue/10">
                         <Folder size={20} className="text-slate-500 group-hover:text-electric-blue" />
                       </div>
                       <div className="flex-1 pt-0.5">
                         <h3 className="text-base font-bold mb-0.5 leading-tight">{folder.name}</h3>
-                        <p className="text-[10px] text-slate-500">{new Date(folder.created).toLocaleDateString()}</p>
+                        <p className="text-[10px] text-slate-500">{new Date(folder.created_at).toLocaleDateString()}</p>
                       </div>
                       <ChevronRight size={16} className="text-slate-700 self-center" />
                     </div>
@@ -875,7 +856,7 @@ function App() {
                       <span className="font-bold text-electric-blue text-sm md:text-base">{selectedFiles.length} file(s) selected</span>
                       <div className="flex flex-wrap gap-2 md:gap-3 justify-center sm:justify-end w-full sm:w-auto">
                         <Button variant="outline" size="sm" onClick={() => setSelectedFiles([])} className="h-8 md:h-9 flex-1 sm:flex-none text-[10px] md:text-xs">Cancel</Button>
-                        <Button variant="secondary" size="sm" onClick={() => { setSharingFileIds(selectedFiles); setActiveTab('collaboration'); }} className="h-8 md:h-9 flex-1 sm:flex-none text-[10px] md:text-xs bg-electric-blue/20 text-electric-blue border-electric-blue/30"><Send size={12} className="mr-1 md:mr-2" /> Share</Button>
+                        <Button variant="secondary" size="sm" onClick={() => { setSharingFileIds(selectedFiles); setSelectedFiles([]); setActiveTab('collaboration'); }} className="h-8 md:h-9 flex-1 sm:flex-none text-[10px] md:text-xs bg-electric-blue/20 text-electric-blue border-electric-blue/30"><Send size={12} className="mr-1 md:mr-2" /> Share</Button>
                         <Button variant="secondary" size="sm" onClick={bulkDownloadFiles} className="h-8 md:h-9 flex-1 sm:flex-none text-[10px] md:text-xs bg-electric-blue text-white shadow-blue-glow"><Download size={12} className="mr-1 md:mr-2" /> Download</Button>
                         <Button variant="outline" size="sm" onClick={bulkDeleteFiles} className="h-8 md:h-9 flex-1 sm:flex-none text-[10px] md:text-xs text-red-400 border-red-500/30">Delete</Button>
                       </div>
@@ -892,10 +873,10 @@ function App() {
                     )}
 
                     {currentFiles.map(file => (
-                      <div key={file._id} className={`glass-panel overflow-hidden hover-glow animate-in group select-none ${selectedFiles.includes(file._id) ? 'ring-2 ring-electric-blue shadow-blue-glow' : ''}`} onMouseDown={() => { setIsSelecting(true); toggleSelection(file._id); }} onMouseEnter={() => { if (isSelecting) addSelection(file._id); }} onDoubleClick={() => file.type.startsWith('image/') && setLightbox(file)} onContextMenu={(e) => { e.preventDefault(); setContextMenu({ isOpen: true, x: e.clientX, y: e.clientY, item: { id: file._id, name: file.name, type: 'file' } }); }}>
+                      <div key={file.id} className={`glass-panel overflow-hidden hover-glow animate-in group select-none ${selectedFiles.includes(file.id) ? 'ring-2 ring-electric-blue shadow-blue-glow' : ''}`} onMouseDown={() => { setIsSelecting(true); toggleSelection(file.id); }} onMouseEnter={() => { if (isSelecting) addSelection(file.id); }} onDoubleClick={() => file.file_type.startsWith('image/') && setLightbox(file)} onContextMenu={(e) => { e.preventDefault(); setContextMenu({ isOpen: true, x: e.clientX, y: e.clientY, item: { id: file.id, name: file.name, type: 'file' } }); }}>
                         <div className="aspect-video bg-slate-950 relative flex items-center justify-center">
-                          {file.type.startsWith('image/') ? (
-                            <img src={`data:${file.type};base64,${file.data}`} alt={file.name} className="w-full h-full object-cover" />
+                          {file.file_type.startsWith('image/') ? (
+                            <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
                           ) : (
                             <FileText size={36} className="text-slate-700" />
                           )}
@@ -903,9 +884,9 @@ function App() {
                         <div className="p-4 flex items-center justify-between">
                           <div className="flex-1 truncate">
                             <h3 className="font-bold truncate text-sm">{file.name}</h3>
-                            <p className="text-[10px] text-slate-500">{(file.size / 1024).toFixed(1)} KB • {new Date(file.added).toLocaleDateString()}</p>
+                            <p className="text-[10px] text-slate-500">{(file.size / 1024).toFixed(1)} KB • {new Date(file.created_at).toLocaleDateString()}</p>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-red-400" onClick={(e) => { e.stopPropagation(); deleteFile(file._id); }}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-red-400" onClick={(e) => { e.stopPropagation(); deleteFile(file.id); }}>
                             <Trash2 size={14} />
                           </Button>
                         </div>
@@ -922,7 +903,7 @@ function App() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="glass-panel p-6 border-slate-800 space-y-2">
                   <div className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Active Researcher</div>
-                  <div className="text-2xl font-bold text-white">{users.find(u => u._id === selectedUser)?.name || 'N/A'}</div>
+                  <div className="text-2xl font-bold text-white">{users.find(u => u.id === selectedUser)?.name || 'N/A'}</div>
                 </div>
                 <div className="glass-panel p-6 border-slate-800 space-y-2">
                   <div className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Total Categories</div>
@@ -950,16 +931,16 @@ function App() {
                 <span className="text-[10px] font-bold text-slate-600 uppercase">Last 20 records</span>
               </div>
               <div className="space-y-3">
-                {[...allFiles].sort((a, b) => b.added - a.added).slice(0, 20).map(file => (
-                  <div key={file._id} className="glass-panel p-4 flex items-center justify-between hover:bg-slate-800/30 transition-all group">
+                {[...allFiles].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 20).map(file => (
+                  <div key={file.id} className="glass-panel p-4 flex items-center justify-between hover:bg-slate-800/30 transition-all group">
                     <div className="flex items-center gap-4 truncate">
                       <div className="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center border border-slate-800">
-                        {file.type.startsWith('image/') ? <img src={`data:${file.type};base64,${file.data}`} className="w-6 h-6 object-cover rounded" /> : <FileText size={18} className="text-slate-500" />}
+                        {file.file_type.startsWith('image/') ? <img src={file.url} className="w-6 h-6 object-cover rounded" /> : <FileText size={18} className="text-slate-500" />}
                       </div>
                       <div className="truncate">
                         <p className="text-sm font-bold text-white truncate">{file.name}</p>
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
-                          {folders.find(f => f._id === file.folderId)?.name || 'Archived'} • {new Date(file.added).toLocaleString()}
+                          {folders.find(f => f.id === file.folder_id)?.name || 'Archived'} • {new Date(file.created_at).toLocaleString()}
                         </p>
                       </div>
                     </div>
@@ -979,70 +960,62 @@ function App() {
             <div className="flex flex-col h-full max-w-5xl mx-auto w-full animate-in">
               <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-hide">
                 {messages.map(msg => (
-                  <div key={msg._id} className={`flex flex-col ${msg.senderId === selectedUser ? 'items-end' : 'items-start'} animate-in`}>
+                  <div key={msg.id} className={`flex flex-col ${msg.sender_id === selectedUser ? 'items-end' : 'items-start'} animate-in`}>
                     <div className="flex items-center gap-2 mb-1 px-2">
-                      <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-500">{msg.senderName}</span>
-                      <span className="text-[8px] text-slate-700">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-500">{msg.sender_name}</span>
+                      <span className="text-[8px] text-slate-700">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       {isAdmin && (
-                        <button onClick={() => deleteMessage(msg._id)} className="text-slate-800 hover:text-red-500 transition-colors">
+                        <button onClick={() => deleteMessage(msg.id)} className="text-slate-800 hover:text-red-500 transition-colors">
                           <Trash size={10} />
                         </button>
                       )}
                     </div>
-                    <div className={`max-w-[80%] p-4 rounded-2xl ${msg.senderId === selectedUser ? 'bg-electric-blue text-white rounded-tr-none shadow-blue-glow' : 'bg-slate-800 text-slate-100 rounded-tl-none'}`}>
-                      {msg.content && <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>}
-                      {((msg.files || (msg.file ? [msg.file] : [])) as any[]).filter(Boolean).map((file, idx) => (
-                        <div key={idx} className={`mt-2 p-3 rounded-xl border flex items-center justify-between gap-4 ${msg.senderId === selectedUser ? 'bg-black/20 border-white/10' : 'bg-slate-900/50 border-slate-700'}`}>
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                              <FileText size={16} />
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold line-clamp-1">{file.name}</p>
-                              <p className="text-[9px] opacity-50 uppercase">{file.type.split('/')[1]}</p>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white/20" onClick={async () => {
-                              let f = allFiles.find(af => af._id === file._id);
-                              if (!f) {
-                                try {
-                                  const res = await fetch(`/api/records/raw/${file._id}`);
-                                  if (res.ok) {
-                                    f = await res.json();
-                                  } else {
-                                    const errData = await res.json();
-                                    alert(`Download Error: ${errData.error || res.statusText}`);
-                                  }
-                                } catch (e: any) { 
-                                  console.error(e);
-                                  alert(`Network error while fetching shared file: ${e.message}`);
-                                }
-                              }
-
-                              if (f && f.data) {
-                                try {
-                                  const link = document.createElement('a');
-                                  link.href = `data:${f.type};base64,${f.data}`;
-                                  link.download = f.name;
-                                  document.body.appendChild(link); // Append for mobile compatibility
-                                  link.click();
-                                  document.body.removeChild(link);
-                                } catch (downloadErr: any) {
-                                  alert(`Browser blocked download: ${downloadErr.message}`);
-                                }
-                              } else if (f && !f.data) {
-                                alert('Error: Record content is missing or corrupted.');
-                              }
-                            }}>
-                              <Download size={14} />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white/20 text-electric-blue" onClick={() => setCloningFileId(file._id)}>
-                              <RefreshCcw size={14} />
-                            </Button>
-                          </div>
+                    <div className={`max-w-[80%] space-y-3 ${msg.sender_id === selectedUser ? 'items-end' : 'items-start'}`}>
+                      {/* Text Content - only show if there's text outside of share tags */}
+                      {msg.content && msg.content.replace(/\[\[SHARE:.*?\]\]/g, '').trim() && (
+                        <div className={`p-4 rounded-2xl ${msg.sender_id === selectedUser ? 'bg-electric-blue text-white rounded-tr-none shadow-blue-glow' : 'bg-slate-800 text-slate-100 rounded-tl-none'}`}>
+                          <div 
+                            className="text-sm leading-relaxed prose prose-invert prose-sm max-w-none"
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(msg.content.replace(/\[\[SHARE:.*?\]\]/g, '')) as any) }} 
+                          />
                         </div>
-                      ))}
+                      )}
+
+                      {/* Interactive Share Blocks */}
+                      {msg.content.match(/\[\[SHARE:.*?\]\]/g)?.map((share, idx) => {
+                        const [name, url, id] = share.replace('[[SHARE:', '').replace(']]', '').split('|');
+                        return (
+                          <div key={idx} className="glass-panel p-4 border-slate-800 bg-slate-900/80 w-full min-w-[280px] animate-in group">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="w-10 h-10 rounded-xl bg-electric-blue/10 flex items-center justify-center text-electric-blue">
+                                <FileText size={20} />
+                              </div>
+                              <div className="flex-1 overflow-hidden">
+                                <p className="text-xs font-bold text-white truncate">{name}</p>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Lab Record</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button 
+                                variant="secondary" 
+                                size="sm" 
+                                onClick={() => downloadFileFromUrl(url, name)}
+                                className="flex-1 h-9 bg-slate-800 hover:bg-slate-700 text-white border-none text-[10px] font-bold uppercase tracking-widest"
+                              >
+                                <Download size={14} className="mr-2" /> Download
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => setCloningFileId(id)}
+                                className="flex-1 h-9 border-slate-800 hover:border-electric-blue hover:bg-electric-blue/10 text-slate-400 hover:text-electric-blue text-[10px] font-bold uppercase tracking-widest"
+                              >
+                                <RefreshCcw size={14} className="mr-2" /> Sync
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -1106,7 +1079,7 @@ function App() {
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
                     {users.map(u => (
-                      <tr key={u._id} className="hover:bg-slate-800/20 transition-colors group">
+                      <tr key={u.id} className="hover:bg-slate-800/20 transition-colors group">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-xs">{u.name.charAt(0)}</div>
@@ -1121,7 +1094,7 @@ function App() {
                           </span>
                         </td>
                         <td className="p-4">
-                          <Button variant="ghost" size="sm" onClick={() => { setSelectedUser(u._id); setActiveTab('records'); }} className="text-xs h-8 text-slate-500 hover:text-electric-blue">View Vault</Button>
+                          <Button variant="ghost" size="sm" onClick={() => { setSelectedUser(u.id); setActiveTab('records'); }} className="text-xs h-8 text-slate-500 hover:text-electric-blue">View Vault</Button>
                         </td>
                       </tr>
                     ))}
@@ -1177,14 +1150,14 @@ function App() {
               {activeRecordData ? (
                 <RecordEditor 
                   data={activeRecordData}
-                  userRrn={users.find(u => u._id === selectedUser)?.rrn || 'DRAFT'}
+                  userRrn={users.find(u => u.id === selectedUser)?.rrn || 'DRAFT'}
                   onChange={(field, value) => setActiveRecordData(prev => prev ? ({ ...prev, [field]: value }) : null)}
                   onRegenerate={handleRegenerateRecord}
                   isGenerating={isGeneratingRecord}
                 />
               ) : (
                 <Editor 
-                  defaultWatermark={users.find(u => u._id === selectedUser)?.rrn || 'DRAFT'}
+                  defaultWatermark={users.find(u => u.id === selectedUser)?.rrn || 'DRAFT'}
                   onSave={(name, data, type) => {
                     if (!selectedFolder) {
                       alert("Please select a category first in the 'My Records' tab.");
@@ -1192,17 +1165,13 @@ function App() {
                       return;
                     }
                     // We'll use a better notification later, for now simple alert
-                    fetch('/api/files', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        name,
-                        type,
-                        size: 25600, // Dummy size
-                        data: "ZHVtbXktZGF0YQ==", // 'dummy-data' in b64
-                        added: Date.now(),
-                        folderId: selectedFolder
-                      })
+                    api.post('/files', {
+                      name,
+                      type,
+                      size: 25600, // Dummy size
+                      data: "ZHVtbXktZGF0YQ==", // 'dummy-data' in b64
+                      added: Date.now(),
+                      folder_id: selectedFolder
                     }).then(() => {
                       alert("Record successfully saved to vault.");
                       loadFiles(selectedFolder);
@@ -1332,7 +1301,7 @@ function App() {
           <Button variant="outline" size="icon" className="absolute top-8 right-8 rounded-full border-slate-800 bg-slate-900">
             <X size={24} />
           </Button>
-          <img src={`data:${lightbox.type};base64,${lightbox.data}`} alt={lightbox.name} className="max-w-full max-h-full object-contain rounded-2xl shadow-blue-glow ring-1 ring-white/10" />
+          <img src={`data:${lightbox.file_type};base64,${lightbox.data}`} alt={lightbox.name} className="max-w-full max-h-full object-contain rounded-2xl shadow-blue-glow ring-1 ring-white/10" />
         </div>
       )}
 
@@ -1344,10 +1313,10 @@ function App() {
               <p className="text-slate-400 text-xs text-center">Select a destination subfolder to archive this intelligence.</p>
             </div>
             <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 scrollbar-hide">
-              {folders.filter(f => f.parentId).map(folder => {
-                const parent = folders.find(p => p._id === folder.parentId);
+              {folders.filter(f => f.parent_id).map(folder => {
+                const parent = folders.find(p => p.id === folder.parent_id);
                 return (
-                  <button key={folder._id} onClick={() => cloneFileToFolder(cloningFileId, folder._id)} className="w-full text-left p-4 rounded-xl bg-slate-900/50 border border-slate-800 hover:border-electric-blue hover:bg-electric-blue/5 transition-all group">
+                  <button key={folder.id} onClick={() => cloneFileToFolder(cloningFileId, folder.id)} className="w-full text-left p-4 rounded-xl bg-slate-900/50 border border-slate-800 hover:border-electric-blue hover:bg-electric-blue/5 transition-all group">
                     <p className="text-[9px] uppercase font-bold text-slate-500 group-hover:text-electric-blue/60">{parent?.name}</p>
                     <p className="text-sm font-bold text-slate-100">{folder.name}</p>
                   </button>

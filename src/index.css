@@ -145,6 +145,10 @@
   @apply mb-4;
 }
 
+.prose a {
+  @apply text-electric-blue hover:text-white transition-colors underline underline-offset-4 font-bold;
+}
+
 @media print {
   @page {
     margin: 0;
