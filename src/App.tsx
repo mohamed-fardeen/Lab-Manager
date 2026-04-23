@@ -6,6 +6,7 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import LandingPage from './components/LandingPage';
 import Editor from './components/Editor';
+import DocumentEditor from './components/DocumentEditor';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProgramGeneratorModal from './components/ProgramGeneratorModal';
 import RecordEditor, { RecordData } from './components/RecordEditor';
@@ -102,6 +103,16 @@ function App() {
   const [globalMessage, setGlobalMessage] = useState('');
   const [sharingFileIds, setSharingFileIds] = useState<string[]>([]);
   const [cloningFileId, setCloningFileId] = useState<string | null>(null);
+  const [editingFileId, setEditingFileId] = useState<string | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<'layout' | 'structure'>('layout');
+  const [activeHtml, setActiveHtml] = useState<string>('');
+
+  const openEditor = (id: string, mode: 'layout' | 'structure') => {
+    setEditingFileId(id);
+    setEditorMode(mode);
+    setIsEditorOpen(true);
+  };
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [userProfile, setUserProfile] = useState<User | null>(null);
@@ -1156,29 +1167,60 @@ function App() {
                   isGenerating={isGeneratingRecord}
                 />
               ) : (
-                <Editor 
-                  defaultWatermark={users.find(u => u.id === selectedUser)?.rrn || 'DRAFT'}
-                  onSave={(name, data, type) => {
-                    if (!selectedFolder) {
-                      alert("Please select a category first in the 'My Records' tab.");
-                      setActiveTab('records');
-                      return;
-                    }
-                    // We'll use a better notification later, for now simple alert
-                    api.post('/files', {
-                      name,
-                      type,
-                      size: 25600, // Dummy size
-                      data: "ZHVtbXktZGF0YQ==", // 'dummy-data' in b64
-                      added: Date.now(),
-                      folder_id: selectedFolder
-                    }).then(() => {
-                      alert("Record successfully saved to vault.");
-                      loadFiles(selectedFolder);
-                      setActiveTab('records');
-                    });
-                  }} 
-                />
+                <div className="w-full h-full flex flex-col gap-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Button 
+                      variant={editorMode === 'layout' ? 'default' : 'outline'} 
+                      onClick={() => setEditorMode('layout')}
+                      className="h-8 text-[10px] uppercase font-bold"
+                    >
+                      Layout Editor
+                    </Button>
+                    <Button 
+                      variant={editorMode === 'structure' ? 'default' : 'outline'} 
+                      onClick={() => setEditorMode('structure')}
+                      className="h-8 text-[10px] uppercase font-bold"
+                    >
+                      Structured Editor (AI)
+                    </Button>
+                  </div>
+                  
+                  {editorMode === 'layout' ? (
+                    <Editor 
+                      fileId={editingFileId || undefined}
+                      defaultWatermark={users.find(u => u.id === selectedUser)?.rrn || 'DRAFT'}
+                      onSave={(name, data, type, blocks) => {
+                        if (!selectedFolder) {
+                          alert("Please select a category first in the 'My Records' tab.");
+                          setActiveTab('records');
+                          return;
+                        }
+                        
+                        const formData = new FormData();
+                        const blob = new Blob([Uint8Array.from(atob(data), c => c.charCodeAt(0))], { type: 'application/pdf' });
+                        formData.append('file', blob, name);
+                        formData.append('folder_id', selectedFolder);
+                        formData.append('edited_content', JSON.stringify({ blocks }));
+
+                        api.post('/files/upload', formData).then(() => {
+                          alert("Record successfully archived.");
+                          loadFiles(selectedFolder);
+                          setActiveTab('records');
+                          setEditingFileId(null);
+                        });
+                      }} 
+                    />
+                  ) : (
+                    <DocumentEditor 
+                      fileName={files.find(f => f.id === editingFileId)?.name || 'New_Record.pdf'}
+                      initialHtml={activeHtml}
+                      onSave={async (html) => {
+                         alert("Structured record updated locally.");
+                         setActiveHtml(html);
+                      }}
+                    />
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -1335,6 +1377,18 @@ function App() {
           </button>
 
           {contextMenu.item.type === 'file' && (
+            <button className="text-left px-4 py-2 text-sm text-slate-300 hover:bg-electric-blue/10 hover:text-electric-blue flex items-center gap-2" onClick={() => { if (!contextMenu.item) return; openEditor(contextMenu.item.id, 'layout'); setContextMenu({ isOpen: false, x: 0, y: 0, item: null }); }}>
+              <Zap size={14} className="text-amber-500" /> Open in Layout Editor
+            </button>
+          )}
+
+          {contextMenu.item.type === 'file' && (
+            <button className="text-left px-4 py-2 text-sm text-slate-300 hover:bg-electric-blue/10 hover:text-electric-blue flex items-center gap-2" onClick={() => { if (!contextMenu.item) return; openEditor(contextMenu.item.id, 'structure'); setContextMenu({ isOpen: false, x: 0, y: 0, item: null }); }}>
+              <Sparkles size={14} className="text-blue-400" /> Structured Editor (AI)
+            </button>
+          )}
+
+          {contextMenu.item.type === 'file' && (
             <button className="text-left px-4 py-2 text-sm text-electric-blue/80 hover:bg-electric-blue/10 hover:text-electric-blue flex items-center gap-2" onClick={() => { if (!contextMenu.item) return; const ids = selectedFiles.length > 0 && selectedFiles.includes(contextMenu.item.id) ? selectedFiles : [contextMenu.item.id]; setSharingFileIds(ids); setActiveTab('collaboration'); setContextMenu({ isOpen: false, x: 0, y: 0, item: null }); }}>
               <Send size={14} /> {selectedFiles.length > 0 && selectedFiles.includes(contextMenu.item.id) ? `Share ${selectedFiles.length} Selected` : 'Send to Group'}
             </button>
@@ -1372,6 +1426,76 @@ function App() {
         onGenerate={handleGenerateRecord}
         isGenerating={isGeneratingRecord}
       />
+
+      {/* Editor Modal Overlay */}
+      {isEditorOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 backdrop-blur-2xl bg-black/60 animate-in fade-in zoom-in duration-300">
+          <div className="w-full h-full max-w-7xl animate-in slide-in-from-bottom-8 duration-500 relative">
+            {editorMode === 'layout' ? (
+              <Editor
+                fileId={editingFileId || undefined}
+                onSave={async (name, pdfData, type, blocks) => {
+                  if (!selectedFolder) {
+                    alert("Please select a category first.");
+                    return;
+                  }
+                  const formData = new FormData();
+                  const blob = new Blob([Uint8Array.from(atob(pdfData), c => c.charCodeAt(0))], { type: 'application/pdf' });
+                  formData.append('file', blob, name);
+                  formData.append('folder_id', selectedFolder);
+                  formData.append('edited_content', JSON.stringify({ blocks }));
+
+                  try {
+                    await api.post('/files/upload', formData);
+                    alert("Record successfully archived.");
+                    loadFiles(selectedFolder);
+                    setIsEditorOpen(false);
+                    setEditingFileId(null);
+                  } catch (e) {
+                    console.error("Upload error", e);
+                    alert("Failed to save.");
+                  }
+                }}
+              />
+            ) : (
+              <DocumentEditor
+                fileName={files.find(f => f.id === editingFileId)?.name || 'Document.pdf'}
+                initialHtml={activeHtml}
+                defaultWatermark={users.find(u => u.id === selectedUser)?.rrn || 'DRAFT'}
+                onSave={async (name, pdfData, type, blocks) => {
+                  if (!selectedFolder) {
+                    alert("Please select a category first.");
+                    return;
+                  }
+                  const formData = new FormData();
+                  const blob = new Blob([Uint8Array.from(atob(pdfData), c => c.charCodeAt(0))], { type: 'application/pdf' });
+                  formData.append('file', blob, name);
+                  formData.append('folder_id', selectedFolder);
+                  formData.append('edited_content', JSON.stringify({ blocks }));
+
+                  try {
+                    await api.post('/files/upload', formData);
+                    alert("Record successfully archived.");
+                    loadFiles(selectedFolder);
+                    setIsEditorOpen(false);
+                    setEditingFileId(null);
+                  } catch (e) {
+                    console.error("Upload error", e);
+                    alert("Failed to save.");
+                  }
+                }}
+              />
+            )}
+            
+            <button 
+              onClick={() => { setIsEditorOpen(false); setEditingFileId(null); }}
+              className="absolute -top-4 -right-4 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center backdrop-blur-xl border border-white/20 transition-all hover:scale-110 shadow-2xl z-[110]"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 

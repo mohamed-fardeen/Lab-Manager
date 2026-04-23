@@ -1,17 +1,33 @@
 const supabaseAdmin = require('../config/supabaseAdmin.cjs');
 const cloudinary = require('../config/cloudinary.cjs');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const { exec } = require('child_process');
+const util = require('util');
+const pdfParse = require('pdf-parse');
+
+const execPromise = util.promisify(exec);
 
 exports.uploadFile = async (req, res) => {
+  let tempInputPath = null;
+  let tempOutputPath = null;
+
   try {
-    const { folder_id } = req.body;
+    const { folder_id, edited_content } = req.body;
     const file = req.file;
 
     if (!file) {
-      return res.status(400).json({ success: false, message: 'No file uploaded' });
+      return res.status(400).json({ success: false, message: 'No file or data provided' });
     }
 
     if (!folder_id) {
       return res.status(400).json({ success: false, message: 'folder_id is required' });
+    }
+
+    // 8. File Size Limit (e.g., > 20MB)
+    if (file.size > 20 * 1024 * 1024) {
+      return res.status(400).json({ success: false, message: 'File exceeds 20MB limit' });
     }
 
     // 1. Verify folder ownership
@@ -26,7 +42,43 @@ exports.uploadFile = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Invalid folder or access denied' });
     }
 
-    // 2. Upload to Cloudinary with Isolation and Sanitization
+    let finalBuffer = file.buffer;
+    let extractedText = '';
+    let status = 'completed';
+
+    // 9. MIME Validation (Only run OCR for application/pdf)
+    if (file.mimetype === 'application/pdf') {
+      const timestamp = Date.now();
+      const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '');
+      tempInputPath = path.join(os.tmpdir(), `input-${timestamp}-${safeName}`);
+      tempOutputPath = path.join(os.tmpdir(), `output-${timestamp}-${safeName}`);
+
+      try {
+        // 1. File Handling: Save uploaded file buffer to temp path
+        fs.writeFileSync(tempInputPath, file.buffer);
+
+        // 2 & 3. OCR Execution & Timeout Protection
+        // Timeout is set to 60s (60000ms), and maxBuffer is increased to handle large CLI outputs
+        const cmd = `ocrmypdf --skip-text --deskew --optimize 1 -l eng "${tempInputPath}" "${tempOutputPath}"`;
+        await execPromise(cmd, { timeout: 60000, maxBuffer: 1024 * 1024 * 10 });
+
+        // If success, read the new OCR processed output buffer
+        finalBuffer = fs.readFileSync(tempOutputPath);
+
+        // 4. Text Extraction
+        const data = await pdfParse(finalBuffer);
+        extractedText = data.text;
+      } catch (ocrError) {
+        // 7. Error Handling (VERY IMPORTANT)
+        console.error('OCR Processing Failed:', ocrError);
+        // Fallback to original buffer
+        finalBuffer = file.buffer;
+        status = 'failed';
+        extractedText = ''; // No extracted text due to failure
+      }
+    }
+
+    // 5. Upload File (either processed PDF or original file) to Cloudinary
     let cloudinaryResult;
     try {
       const safeName = file.originalname
@@ -48,24 +100,27 @@ exports.uploadFile = async (req, res) => {
             else resolve(result);
           }
         );
-        uploadStream.end(file.buffer);
+        uploadStream.end(finalBuffer); // Stream the (processed or original) buffer
       });
     } catch (uploadError) {
       console.error('Cloudinary Upload Error:', uploadError);
       return res.status(500).json({ success: false, message: 'Failed to upload to Cloudinary' });
     }
 
-    // 3. Store metadata in Supabase
+    // 6. Database Updates
     const { data: dbFile, error: dbError } = await supabaseAdmin
       .from('files')
       .insert([{
         name: file.originalname,
         file_type: file.mimetype,
-        size: file.size,
+        size: finalBuffer.length, // Updated size (optimized PDF could be smaller)
         url: cloudinaryResult.secure_url,
         public_id: cloudinaryResult.public_id,
         folder_id: folder_id,
         user_id: req.user.id,
+        extracted_text: extractedText,
+        status: status,
+        edited_content: edited_content ? JSON.parse(edited_content) : null
       }])
       .select()
       .single();
@@ -77,10 +132,26 @@ exports.uploadFile = async (req, res) => {
       return res.status(500).json({ success: false, message: 'Failed to save file metadata' });
     }
 
-    res.status(201).json(dbFile);
+    // 9. Return Proper Response
+    res.status(201).json({
+      status: status,
+      file_url: dbFile.url,
+      extracted_text: dbFile.extracted_text,
+      id: dbFile.id,
+      ...dbFile // Return the rest of the metadata
+    });
+
   } catch (error) {
     console.error('General Upload Error:', error);
     res.status(500).json({ success: false, message: 'Internal server error during upload' });
+  } finally {
+    // 10. Cleanup
+    if (tempInputPath && fs.existsSync(tempInputPath)) {
+      try { fs.unlinkSync(tempInputPath); } catch (e) { console.error('Cleanup Error (Input):', e); }
+    }
+    if (tempOutputPath && fs.existsSync(tempOutputPath)) {
+      try { fs.unlinkSync(tempOutputPath); } catch (e) { console.error('Cleanup Error (Output):', e); }
+    }
   }
 };
 
@@ -211,15 +282,273 @@ exports.cloneFile = async (req, res) => {
         public_id: sourceFile.public_id,
         folder_id: targetFolderId,
         user_id: req.user.id,
+        edited_content: sourceFile.edited_content,
       }])
       .select()
       .single();
 
     if (cloneError) throw cloneError;
-
+    
     res.status(201).json({ success: true, data: clonedFile });
   } catch (error) {
     console.error('Clone File Error:', error);
     res.status(500).json({ success: false, message: 'Synchronization protocol failed' });
+  }
+};
+
+/**
+ * Convert raw OCR text into structured HTML
+ */
+function convertToHTML(text) {
+  const lines = text.split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+
+  let html = '<div class="lab-document">';
+  
+  lines.forEach(line => {
+    // Detect headings (Aim, Theory, Procedure, Program, Output, Result)
+    if (line.match(/^(Aim|Theory|Procedure|Program|Algorithm|Output|Result|Observation|Conclusion)/i)) {
+      html += `<h2 style="color: #1e40af; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 24px; font-family: sans-serif;">${line}</h2>`;
+    } 
+    // Detect Experiment Number
+    else if (line.match(/^Exp(eriment)?\s*No:?\s*\d+/i)) {
+      html += `<h1 style="text-align: center; color: #1e3a8a; margin-bottom: 32px; font-family: sans-serif;">${line}</h1>`;
+    }
+    // Normal paragraphs
+    else {
+      html += `<p style="line-height: 1.6; margin-bottom: 16px; color: #334155; font-family: serif; font-size: 11pt;">${line}</p>`;
+    }
+  });
+
+  html += '</div>';
+  return html;
+}
+
+/**
+ * Process OCR and return structured HTML
+ */
+exports.processOcrOnly = async (req, res) => {
+  let tempInputPath = null;
+  let tempOutputPath = null;
+
+  try {
+    console.log('--- OCR DEBUG START ---');
+    console.log('Headers:', req.headers['content-type']);
+    console.log('Body Keys:', Object.keys(req.body || {}));
+    console.log('File Present:', !!req.file);
+    
+    // 0. Support direct text conversion (from client-side OCR)
+    if (req.body.text && req.body.text.trim().length > 0) {
+      console.log('Direct Text Mode Activated');
+      const htmlContent = convertToHTML(req.body.text);
+      return res.json({ success: true, html: htmlContent, text: req.body.text });
+    }
+
+    const file = req.file;
+    if (!file) {
+      console.warn('OCR FAIL: No file or text in request');
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No file or text provided',
+        debug_body_keys: Object.keys(req.body || {}),
+        debug_has_file: !!req.file
+      });
+    }
+    console.log('File Mode Activated:', file.originalname);
+
+    const timestamp = Date.now();
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '');
+    tempInputPath = path.join(os.tmpdir(), `ocr-in-${timestamp}-${safeName}`);
+    tempOutputPath = path.join(os.tmpdir(), `ocr-out-${timestamp}-${safeName}`);
+
+    fs.writeFileSync(tempInputPath, file.buffer);
+
+    let textToParse = '';
+    
+    // Attempt High-Fidelity OCR
+    try {
+      const cmd = `ocrmypdf --skip-text --deskew "${tempInputPath}" "${tempOutputPath}"`;
+      await execPromise(cmd, { timeout: 45000 }); // 45s timeout
+      if (fs.existsSync(tempOutputPath)) {
+        const ocrBuffer = fs.readFileSync(tempOutputPath);
+        const parsed = await pdfParse(ocrBuffer);
+        textToParse = parsed.text;
+      }
+    } catch (ocrErr) {
+      console.warn('High-fidelity OCR failed or timed out, falling back to basic extraction:', ocrErr.message);
+      // Fallback: Use basic pdf-parse on original buffer
+      const parsed = await pdfParse(file.buffer);
+      textToParse = parsed.text;
+    }
+
+    if (!textToParse || textToParse.trim().length === 0) {
+      return res.status(422).json({ success: false, message: 'Could not extract any readable text from this PDF.' });
+    }
+
+    const htmlContent = convertToHTML(textToParse);
+
+    res.json({
+      success: true,
+      html: htmlContent,
+      text: textToParse
+    });
+
+  } catch (error) {
+    console.error('OCR Error:', error);
+    res.status(500).json({ success: false, message: 'OCR process failed' });
+  } finally {
+    if (tempInputPath && fs.existsSync(tempInputPath)) try { fs.unlinkSync(tempInputPath); } catch (e) {}
+    if (tempOutputPath && fs.existsSync(tempOutputPath)) try { fs.unlinkSync(tempOutputPath); } catch (e) {}
+  }
+};
+
+/**
+ * Export edited HTML back to PDF using Puppeteer
+ */
+exports.exportToPdf = async (req, res) => {
+  let browser = null;
+  try {
+    const { pages, html, filename } = req.body;
+    
+    const puppeteer = require('puppeteer');
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    const page = await browser.newPage();
+    
+    let finalHtml = '';
+    
+    if (pages && Array.isArray(pages)) {
+      // High-Fidelity Multi-Page Reconstruction
+      finalHtml = `
+        <html>
+          <head>
+            <style>
+              body { margin: 0; padding: 0; background: #fff; }
+              .page { 
+                position: relative; 
+                margin: 0; 
+                padding: 0; 
+                page-break-after: always;
+                overflow: hidden;
+              }
+              .block { 
+                position: absolute; 
+                line-height: 1; 
+                white-space: nowrap;
+                color: #000;
+              }
+              @media print {
+                .page { page-break-after: always; }
+              }
+            </style>
+          </head>
+          <body>
+            ${pages.map(p => `
+              <div class="page" style="width: ${p.width}px; height: ${p.height}px; background-image: url(${p.image}); background-size: 100% 100%;">
+                ${p.blocks.map(b => `
+                  <div class="block" style="
+                    left: ${b.x}px; 
+                    top: ${b.y}px; 
+                    font-size: ${b.fontSize}px;
+                    font-family: 'Times New Roman', serif;
+                    font-weight: ${b.isBold ? 'bold' : 'normal'};
+                  ">${b.text}</div>
+                `).join('')}
+              </div>
+            `).join('')}
+          </body>
+        </html>
+      `;
+    } else {
+      // Legacy HTML flow mode
+      finalHtml = `
+        <html>
+          <head>
+            <style>
+              body { padding: 40px; font-family: serif; }
+              @page { margin: 1in; }
+              h1, h2 { font-family: sans-serif; }
+              p { margin-bottom: 1em; }
+            </style>
+          </head>
+          <body>${html}</body>
+        </html>
+      `;
+    }
+
+    await page.setContent(finalHtml, { waitUntil: 'networkidle0' });
+    
+    const pdfOptions = pages ? {
+      width: pages[0].width + 'px',
+      height: pages[0].height + 'px',
+      printBackground: true,
+      margin: { top: 0, right: 0, bottom: 0, left: 0 }
+    } : {
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' }
+    };
+
+    const pdfBuffer = await page.pdf(pdfOptions);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename || 'export.pdf'}"`);
+    res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error('PDF Export Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate PDF' });
+  } finally {
+    if (browser) await browser.close();
+  }
+};
+
+// Save overlay edits for a file (stores block positions + text in DB)
+exports.saveOverlay = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { blocks } = req.body;
+
+    if (!blocks || !Array.isArray(blocks)) {
+      return res.status(400).json({ success: false, message: 'blocks array is required' });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('files')
+      .update({ edited_content: { blocks } })
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .select('id, edited_content')
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Save Overlay Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to save overlay' });
+  }
+};
+
+// Load saved overlay edits for a file
+exports.getOverlay = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabaseAdmin
+      .from('files')
+      .select('edited_content')
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, blocks: data?.edited_content?.blocks || [] });
+  } catch (error) {
+    console.error('Get Overlay Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load overlay' });
   }
 };
