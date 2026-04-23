@@ -7,6 +7,7 @@ const path = require('path');
 const folderRoutes = require('./routes/folderRoutes.cjs');
 const fileRoutes = require('./routes/fileRoutes.cjs');
 const messageRoutes = require('./routes/messageRoutes.cjs');
+const aiRoutes = require('./routes/aiRoutes.cjs');
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use(express.static(path.join(__dirname, '../dist')));
 app.use('/api/folders', folderRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api', aiRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

@@ -7,6 +7,7 @@ const upload = require('../middleware/uploadMiddleware.cjs');
 router.use(authMiddleware);
 
 router.get('/', fileController.getAllFiles);
+router.get('/search', fileController.searchFiles);
 router.get('/folder/:folderId', fileController.getFilesByFolder);
 router.post('/upload', upload.single('file'), fileController.uploadFile);
 router.post('/ocr-process', upload.single('file'), fileController.processOcrOnly);

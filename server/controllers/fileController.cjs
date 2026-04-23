@@ -30,10 +30,10 @@ exports.uploadFile = async (req, res) => {
       return res.status(400).json({ success: false, message: 'File exceeds 20MB limit' });
     }
 
-    // 1. Verify folder ownership
+    // 1. Verify folder ownership and get hierarchy
     const { data: folder, error: folderError } = await supabaseAdmin
       .from('folders')
-      .select('id')
+      .select('id, name, parent_id')
       .eq('id', folder_id)
       .eq('user_id', req.user.id)
       .single();
@@ -42,12 +42,47 @@ exports.uploadFile = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Invalid folder or access denied' });
     }
 
+    let subjectName = '';
+    let experimentName = folder.name;
+    if (folder.parent_id) {
+      const { data: parentFolder } = await supabaseAdmin
+        .from('folders')
+        .select('name')
+        .eq('id', folder.parent_id)
+        .single();
+      if (parentFolder) subjectName = parentFolder.name;
+    }
+
+    const formatTag = (str) => str ? str.toLowerCase().replace(/\s+/g, '-') : '';
+
+    // Language Detection
+    const ext = path.extname(file.originalname).toLowerCase();
+    const languageMap = {
+      '.py': 'python',
+      '.c': 'c',
+      '.cpp': 'cpp',
+      '.js': 'javascript',
+      '.ts': 'typescript',
+      '.java': 'java',
+      '.html': 'html',
+      '.css': 'css',
+      '.json': 'json',
+      '.sql': 'sql',
+      '.md': 'markdown',
+      '.txt': 'text',
+      '.sh': 'bash'
+    };
+    const language = languageMap[ext] || null;
+
     let finalBuffer = file.buffer;
     let extractedText = '';
+    let content = null;
     let status = 'completed';
+    let fileTypeCategory = 'other';
 
     // 9. MIME Validation (Only run OCR for application/pdf)
     if (file.mimetype === 'application/pdf') {
+      fileTypeCategory = 'record';
       const timestamp = Date.now();
       const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '');
       tempInputPath = path.join(os.tmpdir(), `input-${timestamp}-${safeName}`);
@@ -76,6 +111,39 @@ exports.uploadFile = async (req, res) => {
         status = 'failed';
         extractedText = ''; // No extracted text due to failure
       }
+    } else if (language) {
+      fileTypeCategory = 'program';
+      content = file.buffer.toString('utf-8');
+      if (content.length > 50000) content = content.substring(0, 50000); // 50KB limit for search
+    } else if (file.mimetype.startsWith('image/')) {
+      fileTypeCategory = 'screenshot';
+    }
+
+    // Keywords from filename
+    const baseName = file.originalname.substring(0, file.originalname.lastIndexOf('.')) || file.originalname;
+    const keywords = baseName
+      .toLowerCase()
+      .split(/[\s_\-]+/)
+      .filter(word => word.length >= 3)
+      .map(word => word.replace(/[^a-z0-9]/g, ''));
+
+    // Final Tags Construction
+    const finalTagsSet = new Set();
+    if (subjectName) finalTagsSet.add(formatTag(subjectName));
+    finalTagsSet.add(fileTypeCategory);
+    if (language) finalTagsSet.add(language);
+    
+    // Add keywords until max 6 tags total
+    for (const kw of keywords) {
+      if (finalTagsSet.size >= 6) break;
+      if (kw) finalTagsSet.add(kw);
+    }
+
+    const tags = Array.from(finalTagsSet);
+
+    // If it's a PDF, we store the extracted OCR text in the search content column
+    if (file.mimetype === 'application/pdf' && extractedText) {
+      content = extractedText.length > 50000 ? extractedText.substring(0, 50000) : extractedText;
     }
 
     // 5. Upload File (either processed PDF or original file) to Cloudinary
@@ -120,7 +188,10 @@ exports.uploadFile = async (req, res) => {
         user_id: req.user.id,
         extracted_text: extractedText,
         status: status,
-        edited_content: edited_content ? JSON.parse(edited_content) : null
+        edited_content: edited_content ? JSON.parse(edited_content) : null,
+        language: language,
+        tags: tags,
+        content: content
       }])
       .select()
       .single();
@@ -550,5 +621,45 @@ exports.getOverlay = async (req, res) => {
   } catch (error) {
     console.error('Get Overlay Error:', error);
     res.status(500).json({ success: false, message: 'Failed to load overlay' });
+  }
+};
+
+exports.searchFiles = async (req, res) => {
+  try {
+    const { q, language, type, tag } = req.query;
+
+    let query = supabaseAdmin
+      .from('files')
+      .select('*')
+      .eq('user_id', req.user.id);
+
+    if (q) {
+      // Search in name, content, language, and tags
+      query = query.or(`name.ilike.%${q}%,content.ilike.%${q}%,language.ilike.%${q}%,tags.cs.{${q}}`);
+    }
+
+    if (language) {
+      query = query.eq('language', language);
+    }
+
+    if (type) {
+      query = query.eq('file_type', type);
+    }
+
+    if (tag) {
+      query = query.contains('tags', [tag]);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Search error:', error);
+      return res.status(500).json({ success: false, message: 'Search failed' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('Search exception:', error);
+    res.status(500).json({ success: false, message: 'Internal server error during search' });
   }
 };
