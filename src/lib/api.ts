@@ -34,16 +34,22 @@ const request = async (endpoint: string, options: RequestOptions = {}) => {
   });
 
   if (response.status === 401) {
-    // Handle unauthorized - potentially redirect to login
     console.warn('Unauthorized! Potential session expiry.');
   }
 
-  const result = await response.json();
   if (!response.ok) {
-    throw new Error(result.message || result.error || 'API Request Failed');
+    const errorText = await response.text();
+    let errorMessage = 'API Request Failed';
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.message || errorJson.error || errorMessage;
+    } catch (e) {
+      errorMessage = errorText || errorMessage;
+    }
+    throw new Error(errorMessage);
   }
 
-  return result;
+  return await response.json();
 };
 
 export const api = {

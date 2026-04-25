@@ -37,7 +37,10 @@ import {
   Menu,
   Sparkles,
   Search,
-  Filter
+  Filter,
+  Code,
+  Terminal,
+  Layers
 } from 'lucide-react';
 
 /* shadcn-like components (assuming they are set up or I fulfill their role) */
@@ -247,20 +250,24 @@ function App() {
     try {
       const data = await api.post('/generate-record', enrichedParams);
 
-      setActiveRecordData({
-        programNumber: data.programNumber || params.programNumber,
-        date: data.date || params.date,
-        programName: data.title || params.programName,
-        aim: data.aim,
-        algorithm: data.algorithm,
-        programCode: data.code,
-        output: data.output,
-        result: data.result,
-        vivaQuestions: data.vivaQuestions
-      });
-      
-      setIsGeneratorModalOpen(false);
-      setActiveTab('editor');
+      if (data && data.aim) {
+        setActiveRecordData({
+          programNumber: data.programNumber || params.programNumber,
+          date: data.date || params.date,
+          programName: data.title || params.programName,
+          aim: data.aim,
+          algorithm: data.algorithm,
+          programCode: data.code,
+          output: data.output,
+          result: data.result,
+          vivaQuestions: data.vivaQuestions
+        });
+        
+        setIsGeneratorModalOpen(false);
+        setActiveTab('editor');
+      } else {
+        alert('Record intelligence was generated but appears incomplete. Please try again.');
+      }
     } catch (err) {
       console.error(err);
       alert('Failed to generate record intelligence: ' + (err as any).message);
@@ -680,14 +687,15 @@ function App() {
     setLoading(true); // Signal activity
 
     try {
-      const data = await api.post('/ai/chat', {
+      const data = await api.post('/action', {
+        action: 'chat',
         message: userMsg,
         folder_id: selectedFolder,
         model: selectedModel,
         history: chatHistory
       });
 
-      let aiMessage = data.message || 'Error: Empty response';
+      let aiMessage = data.response || data.message || 'Error: Empty response';
       setChatHistory(prev => [...prev, { role: 'assistant', content: aiMessage }]);
 
       const fileRegex = /<create_file\s+filename="([^"]+)"\s*(?:folder="([^"]+)")?>([\s\S]*?)<\/create_file>/g;
@@ -1153,7 +1161,22 @@ function App() {
               </div>
 
               <div className="space-y-8">
-                {(() => {
+                {loading && (
+                  <div className="py-20 text-center space-y-4">
+                    <RefreshCcw size={32} className="text-electric-blue animate-spin mx-auto" />
+                    <p className="text-sm font-bold uppercase tracking-widest text-slate-500">Loading timeline...</p>
+                  </div>
+                )}
+                
+                {!loading && allFiles.length === 0 && (
+                  <div className="py-20 text-center space-y-4 glass-panel border-slate-800">
+                    <Clock size={48} className="text-slate-700 mx-auto" />
+                    <h3 className="text-lg font-bold">No activity yet</h3>
+                    <p className="text-sm text-slate-500">Your research discoveries will appear here as you archive them.</p>
+                  </div>
+                )}
+
+                {!loading && allFiles.length > 0 && (() => {
                   const filtered = allFiles.filter(f => {
                     const typeMatch = !timelineTypeFilter || f.tags?.includes(timelineTypeFilter) || (timelineTypeFilter === 'program' && f.language) || (timelineTypeFilter === 'record' && f.file_type === 'application/pdf');
                     
@@ -1163,6 +1186,14 @@ function App() {
                     
                     return typeMatch && subjectMatch;
                   }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="py-20 text-center space-y-4">
+                        <p className="text-sm text-slate-500">No records match your timeline filters.</p>
+                      </div>
+                    );
+                  }
 
                   const groups: { [key: string]: typeof allFiles } = {};
                   filtered.forEach(f => {
@@ -1192,7 +1223,6 @@ function App() {
                             const folder = folders.find(fd => fd.id === file.folder_id);
                             const isProgram = file.language || file.tags?.includes('program');
                             const isRecord = file.file_type === 'application/pdf' || file.tags?.includes('record');
-                            const isScreenshot = file.file_type.startsWith('image/') || file.tags?.includes('screenshot');
 
                             return (
                               <div 
@@ -1202,15 +1232,12 @@ function App() {
                               >
                                 <div className="flex items-center gap-4 truncate">
                                   <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center border border-slate-800 text-slate-500 group-hover:text-electric-blue group-hover:border-electric-blue/30 transition-colors">
-                                    {isProgram ? <Code size={18} /> : isScreenshot ? <Zap size={18} /> : isRecord ? <FileText size={18} /> : <FileText size={18} />}
+                                    {isProgram ? <Code size={18} /> : isRecord ? <FileText size={18} /> : <Zap size={18} />}
                                   </div>
                                   <div className="truncate">
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-sm font-bold text-white truncate">
-                                        {isProgram ? '💻' : isScreenshot ? '📸' : isRecord ? '📄' : '📄'} 
-                                        {isProgram ? ` Coded ${file.name}` : isScreenshot ? ` Captured ${file.name}` : ` Documented ${file.name}`}
-                                      </p>
-                                    </div>
+                                    <p className="text-sm font-bold text-white truncate">
+                                      {file.name}
+                                    </p>
                                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5 mt-0.5">
                                       {file.language && <span className="text-electric-blue">{file.language}</span>}
                                       {file.language && <span>•</span>}
@@ -1222,7 +1249,7 @@ function App() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setPreviewFile(file); }} className="h-8 w-8 text-slate-600 hover:text-electric-blue">
-                                    <Zap size={16} />
+                                    <Search size={16} />
                                   </Button>
                                   <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); downloadFile(file); }} className="h-8 w-8 text-slate-600 hover:text-electric-blue">
                                     <Download size={16} />
@@ -1436,7 +1463,7 @@ function App() {
           )}
 
           {activeTab === 'editor' && (
-            <div className={`flex-1 overflow-hidden h-full flex flex-col ${activeRecordData ? '' : 'p-4 md:p-6 items-center'}`}>
+            <div className="flex-1 overflow-hidden h-full flex flex-col">
               {activeRecordData ? (
                 <RecordEditor 
                   data={activeRecordData}
@@ -1446,14 +1473,14 @@ function App() {
                   isGenerating={isGeneratingRecord}
                 />
               ) : (
-                <div className="w-full h-full flex flex-col gap-4">
+                <div className="w-full h-full flex flex-col p-4 md:p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Button 
                       variant={editorMode === 'layout' ? 'default' : 'outline'} 
                       onClick={() => setEditorMode('layout')}
                       className="h-8 text-[10px] uppercase font-bold"
                     >
-                      Layout Editor
+                      Layout Editor (OCR)
                     </Button>
                     <Button 
                       variant={editorMode === 'structure' ? 'default' : 'outline'} 
@@ -1501,6 +1528,15 @@ function App() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Global Fallback for undefined tabs */}
+          {!['dashboard', 'records', 'recent', 'settings', 'users', 'collaboration', 'editor'].includes(activeTab) && (
+            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-4">
+              <RefreshCcw size={40} className="text-slate-800 animate-spin" />
+              <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Resetting Neural Pathways...</p>
+              <Button onClick={() => setActiveTab('dashboard')} variant="outline" className="mt-4">Return to Core</Button>
             </div>
           )}
         </section>

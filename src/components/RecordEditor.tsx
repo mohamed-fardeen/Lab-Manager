@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
-import { Download, RefreshCw, Loader2 } from 'lucide-react';
+import { Download, RefreshCw, Loader2, FileText } from 'lucide-react';
 import { Button } from './ui/button';
 
 export interface RecordData {
@@ -169,11 +169,32 @@ function AutoTA({ value, onChange, style, dataAttr }: {
 }
 
 export default function RecordEditor({ data, onChange, userRrn, onRegenerate, isGenerating }: RecordEditorProps) {
+    if (!data || !data.aim) {
+        return (
+            <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-6 animate-in">
+                <div className="w-20 h-20 rounded-3xl bg-slate-800/50 flex items-center justify-center border border-slate-700 shadow-blue-glow">
+                    <FileText size={40} className="text-slate-500" />
+                </div>
+                <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-white tracking-tight uppercase italic font-orbitron">Intelligence Void Detected</h3>
+                    <p className="text-slate-500 text-sm max-w-xs mx-auto uppercase tracking-widest font-black">No valid record data sequencing available in the current buffer.</p>
+                </div>
+                <Button 
+                    onClick={() => window.location.reload()} 
+                    variant="outline" 
+                    className="border-slate-800 text-slate-400 hover:text-electric-blue hover:border-electric-blue/50 transition-all uppercase tracking-widest text-[10px] font-black"
+                >
+                    Reset System Buffer
+                </Button>
+            </div>
+        );
+    }
+
     const pagesRef = useRef<HTMLDivElement>(null);
     const [isExporting, setIsExporting] = useState(false);
 
     // --- Program split state ---
-    const [progPart1, setProgPart1] = useState(data.programCode);
+    const [progPart1, setProgPart1] = useState(data.programCode || '');
     const [progPart2, setProgPart2] = useState('');
     // Ref to the content div inside Page 1 (below header)
     const page1ContentRef = useRef<HTMLDivElement>(null);
@@ -182,7 +203,7 @@ export default function RecordEditor({ data, onChange, userRrn, onRegenerate, is
 
     // Reset split whenever the source data changes
     useEffect(() => {
-        setProgPart1(data.programCode);
+        setProgPart1(data.programCode || '');
         setProgPart2('');
         splitKeyRef.current = '';
     }, [data.programCode, data.aim, data.algorithm]);
@@ -208,7 +229,8 @@ export default function RecordEditor({ data, onChange, userRrn, onRegenerate, is
             const ta = contentEl.querySelector<HTMLTextAreaElement>('[data-prog-p1]');
             if (!ta || ta.scrollHeight === 0) return;
 
-            const lines = data.programCode.split('\n');
+            const safeCode = data.programCode || '';
+            const lines = safeCode.split('\n');
             // Average px per program line
             const pxPerLine = ta.scrollHeight / Math.max(lines.length, 1);
             // How many lines need to move to page 2
@@ -303,7 +325,8 @@ export default function RecordEditor({ data, onChange, userRrn, onRegenerate, is
         }
     };
 
-    const hasViva = (data.vivaQuestions?.length ?? 0) > 0;
+    const vivaArray = Array.isArray(data.vivaQuestions) ? data.vivaQuestions : [];
+    const hasViva = vivaArray.length > 0;
     const hasProgPage2 = progPart2.length > 0;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -461,15 +484,15 @@ export default function RecordEditor({ data, onChange, userRrn, onRegenerate, is
                             <div style={{ ...SECTION_LABEL, textAlign: 'center', fontSize: 16, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
                                 Viva Questions
                             </div>
-                            {data.vivaQuestions!.map((vq, i) => (
+                            {vivaArray.map((vq, i) => (
                                 <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
                                     {/* Question row */}
                                     <div style={{ display: 'flex', gap: 6 }}>
                                         <span style={{ fontWeight: 'bold', fontSize: 13, color: 'black', fontFamily: "'Times New Roman', Times, serif", whiteSpace: 'nowrap', flexShrink: 0 }}>Q{i + 1}.</span>
                                         <AutoTA
-                                            value={vq.question}
+                                            value={vq.question || ''}
                                             onChange={v => {
-                                                const nq = [...data.vivaQuestions!];
+                                                const nq = [...vivaArray];
                                                 nq[i] = { ...nq[i], question: v };
                                                 onChange('vivaQuestions' as any, nq as any);
                                             }}
@@ -479,9 +502,9 @@ export default function RecordEditor({ data, onChange, userRrn, onRegenerate, is
                                     {/* Answer row — no prefix, just indented text */}
                                     <div style={{ paddingLeft: '22px' }}>
                                         <AutoTA
-                                            value={vq.answer}
+                                            value={vq.answer || ''}
                                             onChange={v => {
-                                                const nq = [...data.vivaQuestions!];
+                                                const nq = [...vivaArray];
                                                 nq[i] = { ...nq[i], answer: v };
                                                 onChange('vivaQuestions' as any, nq as any);
                                             }}

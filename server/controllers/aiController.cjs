@@ -53,10 +53,40 @@ exports.generateRecord = async (req, res) => {
             })
         });
 
-        const data = await response.json();
-        const aiOutput = JSON.parse(data.choices[0].message.content);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('GROQ API Error:', errorText);
+            return res.status(response.status).json({ success: false, message: 'Intelligence engine error' });
+        }
 
-        res.json(aiOutput);
+        const data = await response.json();
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+            console.error('Empty AI Response:', data);
+            return res.status(500).json({ success: false, message: 'Intelligence engine returned empty sequencing' });
+        }
+
+        let aiOutput;
+        try {
+            aiOutput = JSON.parse(data.choices[0].message.content);
+        } catch (e) {
+            console.error('JSON Parse Error:', data.choices[0].message.content);
+            return res.status(500).json({ success: false, message: 'Intelligence engine returned malformed JSON' });
+        }
+
+        // Ensure all required keys exist to prevent frontend crashes
+        const finalOutput = {
+            title: aiOutput.title || programName,
+            programNumber: aiOutput.programNumber || programNumber,
+            date: aiOutput.date || date,
+            aim: aiOutput.aim || 'Experimentation Aim Sequence',
+            algorithm: aiOutput.algorithm || 'Algorithm Sequencing in Progress',
+            code: aiOutput.code || aiOutput.programCode || '# No code generated',
+            output: aiOutput.output || 'No sample output available',
+            result: aiOutput.result || 'Experimentation sequence concluded.',
+            vivaQuestions: Array.isArray(aiOutput.vivaQuestions) ? aiOutput.vivaQuestions : []
+        };
+
+        res.json(finalOutput);
     } catch (error) {
         console.error('AI Generation Error:', error);
         res.status(500).json({ success: false, message: 'Failed to generate record intelligence' });
@@ -65,7 +95,7 @@ exports.generateRecord = async (req, res) => {
 
 exports.processAiAction = async (req, res) => {
     try {
-        const { action, fileName, content, language } = req.body;
+        const { action, fileName, content, language, history, model, message } = req.body;
         const apiKey = process.env.GROQ_API_KEY;
 
         if (!apiKey) {
@@ -81,6 +111,11 @@ exports.processAiAction = async (req, res) => {
             userPrompt = `Summarize this file named "${fileName}":\n\n${content}`;
         } else if (action === 'viva') {
             userPrompt = `Generate 5 viva questions and answers for this file named "${fileName}":\n\n${content}`;
+        } else if (action === 'chat') {
+            userPrompt = message || 'Tell me about this laboratory environment.';
+            if (content) {
+                userPrompt = `Context (File: ${fileName}):\n${content}\n\nUser Question: ${message}`;
+            }
         }
 
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -90,18 +125,29 @@ exports.processAiAction = async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
+                model: model || 'llama-3.3-70b-versatile',
                 messages: [
                     { role: 'system', content: systemPrompt },
+                    ...((history && Array.isArray(history)) ? history.slice(-5).map(m => ({ role: m.role, content: m.content })) : []),
                     { role: 'user', content: userPrompt }
                 ],
                 temperature: 0.2
             })
         });
 
-        const data = await response.json();
-        const aiResponse = data.choices[0].message.content;
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('GROQ Chat API Error:', errorText);
+            return res.status(response.status).json({ success: false, message: 'Intelligence engine error' });
+        }
 
+        const data = await response.json();
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+            console.error('Empty AI Chat Response:', data);
+            return res.status(500).json({ success: false, message: 'Intelligence engine returned empty response' });
+        }
+
+        const aiResponse = data.choices[0].message.content || 'Intelligence sequencing complete, but no data was generated. Please try re-phrasing your request.';
         res.json({ response: aiResponse });
     } catch (error) {
         console.error('AI Action Error:', error);
