@@ -643,7 +643,13 @@ exports.searchFiles = async (req, res) => {
     }
 
     if (type) {
-      query = query.eq('file_type', type);
+      if (type === 'record') {
+        query = query.or(`tags.cs.{${type}},file_type.eq.application/pdf`);
+      } else if (type === 'screenshot') {
+        query = query.or(`tags.cs.{${type}},file_type.ilike.image/%`);
+      } else {
+        query = query.contains('tags', [type]);
+      }
     }
 
     if (tag) {

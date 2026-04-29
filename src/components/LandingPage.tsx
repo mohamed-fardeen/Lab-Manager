@@ -1,6 +1,6 @@
 import React, { useRef, Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Database, Cpu, Monitor, Server, Terminal, ShieldCheck, Activity, Network } from 'lucide-react';
+import { FolderOpen, Share2, Terminal, Bot, History, ChevronRight } from 'lucide-react';
 import ThreeCanvas from './ThreeCanvas';
 
 interface LandingPageProps {
@@ -28,180 +28,142 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
     };
 
     const itemVariants = {
-        hidden: { opacity: 0, y: 30, scale: 1 },
+        hidden: { opacity: 0, y: 20 },
         show: {
             opacity: 1,
             y: 0,
-            scale: 1,
-            transition: { duration: 0.6 }
+            transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] }
         }
     };
 
     return (
         <div
             onMouseMove={handleMouseMove}
-            className="relative min-h-screen w-full bg-[#020617] text-slate-100 overflow-x-hidden font-sans selection:bg-electric-blue/30"
+            className="relative min-h-screen w-full bg-[#050505] text-slate-200 overflow-x-hidden font-sans selection:bg-slate-800"
         >
-            <Suspense fallback={<div className="fixed inset-0 bg-[#020617]" />}>
+            <Suspense fallback={<div className="fixed inset-0 bg-[#050505]" />}>
                 <ThreeCanvas />
             </Suspense>
 
-            <div className="fixed inset-0 z-[1] pointer-events-none opacity-[0.05] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+            <div className="fixed inset-0 z-[1] pointer-events-none opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
-            {/* Sticky/Fixed Navigation */}
-            <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-6 md:px-12 py-4 md:py-8 max-w-7xl mx-auto backdrop-blur-md bg-[#020617]/20">
+            {/* Sharp, minimalist navigation */}
+            <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-6 md:px-12 py-6 max-w-7xl mx-auto mix-blend-difference">
                 <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="flex items-center gap-4"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center gap-3"
                 >
-                    <div className="w-10 h-10 rounded-xl bg-electric-blue/20 border border-electric-blue/40 flex items-center justify-center shadow-[0_0_20px_rgba(59,130,246,0.2)]">
-                        <Terminal size={20} className="text-electric-blue" />
-                    </div>
-                    <span className="text-lg md:text-xl font-black tracking-widest font-orbitron bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-500">TERMINAL_SYNC</span>
+                    <Terminal size={18} className="text-white" />
+                    <span className="text-sm font-bold tracking-widest uppercase text-white">Lab_Manager</span>
                 </motion.div>
 
-                <div className="hidden lg:flex items-center gap-16">
-                    {['Mainframe', 'Inventory', 'Protocol', 'Analytics'].map((link, i) => (
-                        <motion.a
-                            key={link}
-                            href="#"
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.05 * i }}
-                            className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 hover:text-white transition-all relative group"
-                        >
-                            {link}
-                            <span className="absolute -bottom-2 left-0 w-0 h-[1px] bg-electric-blue transition-all group-hover:w-full" />
-                        </motion.a>
-                    ))}
-                </div>
-
                 <motion.button
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     onClick={onLoginClick}
-                    className="px-6 md:px-8 py-2.5 md:py-3 rounded-xl bg-electric-blue text-white font-black text-[8px] md:text-[9px] tracking-[0.2em] md:tracking-[0.3em] uppercase shadow-lg hover:shadow-blue-glow transition-all whitespace-nowrap"
+                    className="group flex items-center gap-2 px-6 py-2 border border-white/20 text-white font-bold text-[10px] tracking-widest uppercase hover:bg-white hover:text-black transition-colors duration-300"
                 >
-                    System Entry
+                    System Access
+                    <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </motion.button>
             </nav>
 
-            <main className="relative z-10 w-full">
-                {/* Hero Section: Properly Centered and Visible */}
-                <section className="min-h-screen flex flex-col items-center justify-center text-center px-12">
+            <main className="relative z-10 w-full pt-32">
+                {/* Hero Section: Honest and Professional */}
+                <section className="min-h-[80vh] flex flex-col justify-center px-6 md:px-12 max-w-7xl mx-auto">
                     <motion.div
                         variants={containerVariants}
                         initial="hidden"
                         animate="show"
-                        className="max-w-4xl"
+                        className="max-w-3xl"
                     >
-                        <motion.div variants={itemVariants} className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-electric-blue/5 border border-electric-blue/30 text-electric-blue text-[10px] font-black uppercase tracking-[0.4em] mb-12 backdrop-blur-3xl">
-                            <div className="w-1.5 h-1.5 rounded-full bg-electric-blue animate-pulse" />
-                            Command Protocol Active // Node_04
+                        <motion.div variants={itemVariants} className="inline-block mb-8">
+                            <span className="px-3 py-1 border border-slate-700 text-slate-400 text-[10px] uppercase tracking-[0.2em]">
+                                Research & Documentation
+                            </span>
                         </motion.div>
 
                         <motion.h1
                             variants={itemVariants}
-                            className="text-5xl sm:text-7xl md:text-[10rem] font-black tracking-tighter leading-[0.85] mb-10 md:mb-14 font-orbitron text-white"
+                            className="text-5xl md:text-8xl font-black tracking-tight leading-[1.1] mb-8 text-white"
                         >
-                            <span className="block opacity-40">CONTROL</span>
-                            <span className="block italic text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-500 pb-2">THE LAB.</span>
+                            Organize your <br className="hidden md:block" />
+                            <span className="text-slate-500">lab workspace.</span>
                         </motion.h1>
 
-                        <motion.p variants={itemVariants} className="text-xl md:text-2xl text-slate-400 max-w-2xl font-light leading-relaxed mb-16 mx-auto">
-                            The unified OS for advanced computer laboratories.
-                            Synchronize hardware nodes and monitor real-time throughput.
+                        <motion.p variants={itemVariants} className="text-lg md:text-xl text-slate-400 font-light leading-relaxed mb-12 max-w-xl">
+                            A clean, efficient environment for managing lab records, synchronizing files, and generating documentation with AI assistance. Built for researchers and students.
                         </motion.p>
 
-                        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-6 md:gap-8 justify-center items-center">
+                        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4">
                             <button
                                 onClick={onLoginClick}
-                                className="group relative w-full sm:w-auto px-10 md:px-14 py-4 md:py-6 bg-electric-blue text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] overflow-hidden shadow-[0_0_50px_rgba(59,130,246,0.3)] transition-all hover:scale-105 active:scale-95"
+                                className="px-8 py-4 bg-white text-black font-bold uppercase tracking-[0.1em] text-xs hover:bg-slate-200 transition-colors"
                             >
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
-                                <span className="relative flex items-center justify-center gap-4">
-                                    Establish Link <Zap size={18} />
-                                </span>
+                                Open Workspace
                             </button>
-                            <button className="w-full sm:w-auto px-10 md:px-14 py-4 md:py-6 bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-                                Resource Map
-                            </button>
+                            <a href="#features" className="px-8 py-4 border border-slate-800 text-slate-300 font-bold uppercase tracking-[0.1em] text-xs hover:border-slate-500 transition-colors text-center">
+                                View Capabilities
+                            </a>
                         </motion.div>
                     </motion.div>
                 </section>
 
-                {/* Features Section */}
-                <section className="max-w-7xl mx-auto px-6 md:px-12 py-16 md:py-32">
+                {/* Features Section: Factual capabilities */}
+                <section id="features" className="max-w-7xl mx-auto px-6 md:px-12 py-24 border-t border-slate-900">
                     <motion.div
-                        initial={{ opacity: 0, y: 50 }}
+                        initial={{ opacity: 0, y: 40 }}
                         whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        className="grid grid-cols-1 md:grid-cols-3 gap-12"
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.8 }}
                     >
-                        {[
-                            { title: 'Core Ops', desc: 'Centralized CPU and memory orchestration.', icon: Cpu, color: 'text-blue-400' },
-                            { title: 'Fleet Sync', desc: 'Synchronized terminal deployment.', icon: Monitor, color: 'text-cyan-400' },
-                            { title: 'Data Vault', desc: 'Security protocol archival.', icon: Database, color: 'text-white' },
-                        ].map((feature, i) => (
-                            <motion.div
-                                key={i}
-                                whileHover={{ y: -10 }}
-                                className="p-8 md:p-12 rounded-3xl bg-slate-900/10 border border-slate-800/50 hover:border-electric-blue/40 transition-all duration-500 text-left backdrop-blur-sm"
-                            >
-                                <div className={`w-14 h-14 rounded-2xl bg-slate-950 flex items-center justify-center mb-8 border border-white/5 ${feature.color}`}>
-                                    <feature.icon size={28} />
+                        <h2 className="text-sm font-bold uppercase tracking-[0.3em] text-slate-500 mb-16">Core Modules</h2>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-16">
+                            {[
+                                { 
+                                    title: 'Record Management', 
+                                    desc: 'Create, organize, and securely store your lab records in a hierarchical folder system with instant search capabilities.', 
+                                    icon: FolderOpen 
+                                },
+                                { 
+                                    title: 'AI Documentation', 
+                                    desc: 'Automate repetitive write-ups. Generate aims, algorithms, and viva questions instantly using the integrated Lab-Bot assistant.', 
+                                    icon: Bot 
+                                },
+                                { 
+                                    title: 'Collaboration', 
+                                    desc: 'Share records seamlessly with peers and communicate directly through the built-in messaging interface.', 
+                                    icon: Share2 
+                                },
+                                { 
+                                    title: 'Activity Timeline', 
+                                    desc: 'Keep track of all your document revisions, uploads, and interactions in a chronological activity feed.', 
+                                    icon: History 
+                                }
+                            ].map((feature, i) => (
+                                <div key={i} className="flex flex-col md:flex-row gap-6 group">
+                                    <div className="shrink-0 w-12 h-12 flex items-center justify-center border border-slate-800 bg-slate-900/50 group-hover:border-slate-500 transition-colors">
+                                        <feature.icon size={20} className="text-slate-400 group-hover:text-white transition-colors" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-medium text-white mb-3">{feature.title}</h3>
+                                        <p className="text-slate-400 leading-relaxed text-sm">{feature.desc}</p>
+                                    </div>
                                 </div>
-                                <h3 className="text-xl font-bold font-orbitron mb-4 tracking-widest uppercase">{feature.title}</h3>
-                                <p className="text-slate-500 text-sm leading-relaxed">{feature.desc}</p>
-                            </motion.div>
-                        ))}
+                            ))}
+                        </div>
                     </motion.div>
                 </section>
 
-                {/* Architecture Section */}
-                <section className="px-6 md:px-12 py-24 md:py-48 bg-slate-950/20 backdrop-blur-3xl border-y border-white/5">
-                    <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-20 md:gap-32 items-center">
-                        <div className="space-y-12">
-                            <div className="space-y-4">
-                                <span className="text-electric-blue font-black uppercase tracking-[0.6em] text-[10px]">Infrastructure</span>
-                                <h2 className="text-6xl font-black font-orbitron uppercase text-white leading-tight">Digital<br />Mainframe</h2>
-                            </div>
-                            <div className="space-y-10">
-                                {[
-                                    { title: 'Network Topology', text: 'Visualized signal strength monitoring.', icon: Network },
-                                    { title: 'Security Protocol', text: 'Hardware-level authentication.', icon: ShieldCheck },
-                                    { title: 'Uptime Metrics', text: 'Real-time telemetry reports.', icon: Activity }
-                                ].map((item, i) => (
-                                    <div key={i} className="flex gap-4 md:gap-8 group">
-                                        <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center shrink-0 border border-white/5 group-hover:border-electric-blue/40 transition-all">
-                                            <item.icon size={20} className="text-slate-500 group-hover:text-electric-blue" />
-                                        </div>
-                                        <div>
-                                            <h4 className="text-lg font-bold text-white uppercase tracking-widest">{item.title}</h4>
-                                            <p className="text-slate-500 text-sm">{item.text}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                <footer className="px-6 md:px-12 py-12 border-t border-slate-900">
+                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="flex items-center gap-3">
+                            <Terminal size={16} className="text-slate-600" />
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Lab_Manager v2.0</span>
                         </div>
-                        <div className="relative aspect-square glass-panel rounded-[2rem] md:rounded-[3rem] flex items-center justify-center p-10 md:p-20 border-white/10">
-                            <motion.div animate={{ y: [0, -20, 0] }} transition={{ duration: 4, repeat: Infinity }}>
-                                <Server size={140} className="md:size-[220px] text-electric-blue opacity-80" strokeWidth={0.5} />
-                            </motion.div>
-                        </div>
-                    </div>
-                </section>
-
-                <footer className="px-12 py-24 text-center border-t border-white/5 bg-black/40">
-                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
-                        <div className="flex items-center gap-4">
-                            <Terminal size={20} className="text-slate-500" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Protocol v1.0.4</span>
-                        </div>
-                        <p className="text-[9px] font-mono text-slate-600 uppercase tracking-widest">© 2026 Virtual Lab Environments</p>
+                        <p className="text-[10px] text-slate-600 uppercase tracking-widest">© 2026 Academic Workspace</p>
                     </div>
                 </footer>
             </main>

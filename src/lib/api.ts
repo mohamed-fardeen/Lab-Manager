@@ -35,6 +35,9 @@ const request = async (endpoint: string, options: RequestOptions = {}) => {
 
   if (response.status === 401) {
     console.warn('Unauthorized! Potential session expiry.');
+    // Force sign-out on the frontend to clean up any stale/invalid session state
+    supabase.auth.signOut().catch(console.error);
+    throw new Error('Authorization token required or expired');
   }
 
   if (!response.ok) {

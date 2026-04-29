@@ -8,10 +8,12 @@ export default function ThreeCanvas() {
         if (!containerRef.current) return;
 
         const scene = new THREE.Scene();
-        // Wider FOV for a grander scale
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        
+        // Add subtle fog to blend distant objects into the background
+        scene.fog = new THREE.FogExp2('#050505', 0.02);
 
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         containerRef.current.appendChild(renderer.domElement);
@@ -19,80 +21,97 @@ export default function ThreeCanvas() {
         const group = new THREE.Group();
         scene.add(group);
 
-        // --- ANTIGRAVITY SPHERE (Fibonacci Distribution) ---
-        const count = 1500;
-        const radius = 6;
+        // --- ANTIGRAVITY GEOMETRY EFFECT ---
+        // Instead of dots, we use floating abstract 3D objects that tumble weightlessly
+        const shapes = [
+            new THREE.IcosahedronGeometry(1, 0),
+            new THREE.TorusGeometry(0.8, 0.2, 16, 32),
+            new THREE.OctahedronGeometry(1, 0),
+            new THREE.TetrahedronGeometry(1, 0),
+            new THREE.BoxGeometry(1.2, 1.2, 1.2)
+        ];
 
-        // Geometry for the dash/particles
-        const geometry = new THREE.CylinderGeometry(0.015, 0.015, 0.25, 6);
-        geometry.rotateX(Math.PI / 2); // Align with Z axis for lookAt()
-
-        const material = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
+        // Material with wireframe or subtle gloss
+        const material = new THREE.MeshPhysicalMaterial({
+            color: 0x3b82f6, // Electric blue base
+            metalness: 0.1,
+            roughness: 0.8,
             transparent: true,
-            opacity: 0.8
+            opacity: 0.15, // Very subtle, ghostly floating shapes
+            wireframe: true,
+            side: THREE.DoubleSide
         });
 
-        const instancedMesh = new THREE.InstancedMesh(geometry, material, count);
-
-        const dummy = new THREE.Object3D();
-        const color = new THREE.Color();
-
-        const phi = Math.PI * (3 - Math.sqrt(5)); // Golden angle
-
-        const basePositions: THREE.Vector3[] = [];
-        const directions: THREE.Vector3[] = [];
-
-        for (let i = 0; i < count; i++) {
-            // Distribute points evenly on a sphere
-            const y = 1 - (i / (count - 1)) * 2;
-            const r = Math.sqrt(1 - y * y);
-
-            const theta = phi * i;
-
-            const x = Math.cos(theta) * r;
-            const z = Math.sin(theta) * r;
-
-            const dir = new THREE.Vector3(x, y, z);
-            directions.push(dir.clone());
-
-            const pos = dir.clone().multiplyScalar(radius);
-            basePositions.push(pos.clone());
-
-            dummy.position.copy(pos);
-            dummy.lookAt(new THREE.Vector3(0, 0, 0));
-            dummy.updateMatrix();
-            instancedMesh.setMatrixAt(i, dummy.matrix);
-
-            // Gradient from Blue (left) to Orange/Red (right)
-            const mixRatio = (x + 1) / 2; // Normalize X from [-1, 1] to [0, 1]
-            color.lerpColors(new THREE.Color('#3b82f6'), new THREE.Color('#f97316'), mixRatio);
-            instancedMesh.setColorAt(i, color);
+        // We will store individual mesh data to animate them uniquely
+        interface FloatingObject {
+            mesh: THREE.Mesh;
+            basePos: THREE.Vector3;
+            rotSpeed: THREE.Vector3;
+            floatSpeed: number;
+            phase: number;
         }
 
-        instancedMesh.instanceMatrix.needsUpdate = true;
-        if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
+        const floatingObjects: FloatingObject[] = [];
+        const objectCount = 35; // Fewer objects, but larger and more detailed
 
-        group.add(instancedMesh);
+        for (let i = 0; i < objectCount; i++) {
+            const geometry = shapes[Math.floor(Math.random() * shapes.length)];
+            const mesh = new THREE.Mesh(geometry, material);
+            
+            // Randomly position in a wide 3D space
+            const x = (Math.random() - 0.5) * 40;
+            const y = (Math.random() - 0.5) * 30;
+            const z = (Math.random() - 0.5) * 30;
+            
+            // Randomize scale
+            const scale = 0.5 + Math.random() * 1.5;
+            mesh.scale.set(scale, scale, scale);
+            
+            // Random initial rotation
+            mesh.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
 
-        camera.position.z = 15;
+            mesh.position.set(x, y, z);
+            group.add(mesh);
 
-        // Interaction State
-        let mouseX = 0;
-        let mouseY = 0;
+            floatingObjects.push({
+                mesh,
+                basePos: new THREE.Vector3(x, y, z),
+                rotSpeed: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.01,
+                    (Math.random() - 0.5) * 0.01,
+                    (Math.random() - 0.5) * 0.01
+                ),
+                floatSpeed: 0.1 + Math.random() * 0.2,
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+
+        // Lighting to highlight the wireframes slightly
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        
+        const pointLight = new THREE.PointLight(0x3b82f6, 2, 50);
+        pointLight.position.set(0, 0, 10);
+        scene.add(pointLight);
+
+        camera.position.z = 20;
+
+        // Interaction State - Smooth Mouse Parallax
         let targetX = 0;
         let targetY = 0;
-        let isHovering = false;
-        let hoverProgress = 0;
+        let mouseX = 0;
+        let mouseY = 0;
 
         const handleMouseMove = (event: MouseEvent) => {
             mouseX = (event.clientX / window.innerWidth - 0.5) * 2;
             mouseY = (event.clientY / window.innerHeight - 0.5) * 2;
-            isHovering = true;
         };
 
         const handleMouseLeave = () => {
-            isHovering = false;
             mouseX = 0;
             mouseY = 0;
         };
@@ -101,53 +120,42 @@ export default function ThreeCanvas() {
         document.body.addEventListener('mouseleave', handleMouseLeave);
 
         const clock = new THREE.Clock();
-
         let frameId: number;
 
         const animate = () => {
             frameId = requestAnimationFrame(animate);
             const time = clock.getElapsedTime();
 
-            // Mouse smoothing
-            targetX += (mouseX - targetX) * 0.05;
-            targetY += (mouseY - targetY) * 0.05;
+            // Smooth interpolation for mouse target
+            targetX += (mouseX - targetX) * 0.02;
+            targetY += (mouseY - targetY) * 0.02;
 
-            // Global Rotation (Only rotate based on hover velocity)
-            group.rotation.y += 0.002 * hoverProgress;
-            group.rotation.x += 0.001 * hoverProgress;
+            // Parallax effect on the camera
+            camera.position.x += (targetX * 3 - camera.position.x) * 0.02;
+            camera.position.y += (-targetY * 3 - camera.position.y) * 0.02;
+            camera.lookAt(scene.position);
 
-            // Parallax offset
-            group.position.x = targetX * 1.5;
-            group.position.y = -targetY * 1.5;
+            // Move the point light with the mouse for dynamic reflections
+            pointLight.position.x = targetX * 10;
+            pointLight.position.y = -targetY * 10;
 
-            // Hover Animation Logic (Expand and vibrate dots)
-            if (isHovering && (Math.abs(mouseX) > 0.05 || Math.abs(mouseY) > 0.05)) {
-                hoverProgress += (1 - hoverProgress) * 0.05; // Ease towards 1
-            } else {
-                hoverProgress += (0 - hoverProgress) * 0.05; // Ease back to 0 faster
-            }
+            // Antigravity tumble for each object
+            floatingObjects.forEach((obj) => {
+                // Continuous slow rotation (tumbling in space)
+                obj.mesh.rotation.x += obj.rotSpeed.x;
+                obj.mesh.rotation.y += obj.rotSpeed.y;
+                obj.mesh.rotation.z += obj.rotSpeed.z;
 
-            for (let i = 0; i < count; i++) {
-                const dir = directions[i];
+                // Weightless floating drift (sine wave displacement)
+                const floatY = Math.sin(time * obj.floatSpeed + obj.phase) * 3;
+                const floatX = Math.cos(time * (obj.floatSpeed * 0.8) + obj.phase) * 2;
+                const floatZ = Math.sin(time * (obj.floatSpeed * 1.2) + obj.phase) * 1.5;
 
-                // Subtle breathing noise only when hovered
-                const breathing = Math.sin(time * 1.5 + i) * 0.1 * hoverProgress;
-
-                // On hover: particles expand radially and jitter
-                const expansion = radius + breathing + (hoverProgress * 2.5);
-
-                dummy.position.copy(dir).multiplyScalar(expansion);
-                dummy.lookAt(new THREE.Vector3(0, 0, 0));
-
-                // Add "liftoff" darting motion on hover
-                const dartOffset = (Math.sin(time * 8 + i * 44) * hoverProgress * 0.6);
-                dummy.translateZ(dartOffset);
-
-                dummy.updateMatrix();
-                instancedMesh.setMatrixAt(i, dummy.matrix);
-            }
-            instancedMesh.instanceMatrix.needsUpdate = true;
-
+                obj.mesh.position.x = obj.basePos.x + floatX;
+                obj.mesh.position.y = obj.basePos.y + floatY;
+                obj.mesh.position.z = obj.basePos.z + floatZ;
+            });
+            
             renderer.render(scene, camera);
         };
 
@@ -165,18 +173,18 @@ export default function ThreeCanvas() {
             window.removeEventListener('resize', handleResize);
             document.body.removeEventListener('mouseleave', handleMouseLeave);
 
-            if (frameId) {
-                cancelAnimationFrame(frameId);
-            }
-
+            if (frameId) cancelAnimationFrame(frameId);
+            
             if (containerRef.current && renderer.domElement.parentNode) {
                 containerRef.current.removeChild(renderer.domElement);
             }
-            geometry.dispose();
+            
+            // Cleanup geometries and materials
+            shapes.forEach(shape => shape.dispose());
             material.dispose();
             renderer.dispose();
         };
     }, []);
 
-    return <div ref={containerRef} className="fixed inset-0 z-0 pointer-events-none opacity-90" />;
+    return <div ref={containerRef} className="fixed inset-0 z-0 pointer-events-none opacity-80 mix-blend-screen" />;
 }
