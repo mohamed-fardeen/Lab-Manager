@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-const BASE_URL = '/api';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 interface RequestOptions extends RequestInit {
   data?: any;
@@ -55,7 +55,6 @@ const request = async (endpoint: string, options: RequestOptions = {}) => {
     // thrown error message (the response body alone often just says
     // "Internal Server Error" with no context).
     const finalMessage = `${response.status} ${response.statusText || ''} on ${endpoint} — ${errorMessage}`.trim();
-    // eslint-disable-next-line no-console
     console.error(`[api] ${finalMessage}`, { status: response.status, body: errorText });
     throw new Error(finalMessage);
   }
