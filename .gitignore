@@ -3,6 +3,13 @@ dist/
 .env
 *.log
 
+# Playwright
+/playwright-report/
+/playwright/.cache/
+/test-results/
+/blob-report/
+/playwright/.tmp/
+
 # Antigravity / Agent files
 .agent/
 .shared/

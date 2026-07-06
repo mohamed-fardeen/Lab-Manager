@@ -359,24 +359,24 @@ const Editor: React.FC<EditorProps> = ({
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#0a0f1d] rounded-3xl overflow-hidden border border-slate-800/50 shadow-2xl relative select-none">
+    <div className="flex flex-col h-full w-full app-bg rounded-3xl overflow-hidden border border-border shadow-2xl relative select-none">
       
       {/* Status Toast */}
       {editorStatus && (
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[300] bg-blue-600 text-white px-6 py-2 rounded-full text-[11px] font-black uppercase tracking-widest shadow-xl animate-bounce">
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[300] bg-primary text-primary-foreground px-6 py-2 rounded-full text-[11px] font-black uppercase tracking-widest shadow-xl animate-bounce">
           {editorStatus}
         </div>
       )}
 
       {/* Header */}
-      <div className="bg-slate-950 p-4 px-8 border-b border-slate-800 flex items-center justify-between">
+      <div className="app-editor-toolbar p-4 px-8 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <FileText className="text-blue-500" size={24} />
-          <h2 className="font-bold text-slate-200 text-lg">{fileName}</h2>
+          <FileText className="text-primary" size={24} />
+          <h2 className="font-bold text-foreground text-lg">{fileName}</h2>
         </div>
         <div className="flex items-center gap-3">
           {blocks.length === 0 && rawFile && (
-            <Button onClick={handleOCR} disabled={isProcessing} className="bg-amber-600 hover:bg-amber-500 text-white border-none shadow-lg shadow-amber-900/20">
+            <Button onClick={handleOCR} disabled={isProcessing} className="bg-amber-600 hover:bg-amber-500 text-foreground border-none shadow-lg shadow-amber-900/20">
               {isProcessing ? <Loader2 size={16} className="animate-spin mr-2" /> : <BrainCircuit size={16} className="mr-2" />}
               OCR AI Analysis
             </Button>
@@ -386,44 +386,44 @@ const Editor: React.FC<EditorProps> = ({
               <Trash2 size={16} className="mr-2" /> Purge Elements
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="border-slate-800 text-slate-300 h-10 px-4">
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="border-border text-foreground h-10 px-4">
             <Plus size={16} className="mr-2" /> Change File
           </Button>
           <input type="file" ref={fileInputRef} className="hidden" accept=".pdf" onChange={handleImport} />
-          <Button onClick={() => onSave?.(fileName, "dummy", "pdf", blocks)} className="bg-blue-600 hover:bg-blue-500 text-white font-bold h-10 px-8 shadow-lg shadow-blue-900/20">
+          <Button onClick={() => onSave?.(fileName, "dummy", "pdf", blocks)} className="bg-primary hover:bg-foreground hover:text-background text-primary-foreground font-bold h-10 px-8 shadow-lg shadow-black/20">
             <Save size={16} className="mr-2" /> Save & Close
           </Button>
         </div>
       </div>
 
       {/* Toolbar */}
-      <div className="bg-slate-900/50 p-3 border-b border-slate-800 flex items-center gap-4 px-8 backdrop-blur-md">
-        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
-          <Button variant="ghost" size="icon" onClick={() => setSelectedId(null)} className={!selectedId ? 'bg-blue-600 text-white' : 'text-slate-500'}><MousePointer2 size={18} /></Button>
+      <div className="app-editor-toolbar p-3 flex items-center gap-4 px-8 backdrop-blur-md">
+        <div className="flex items-center gap-1 app-bg p-1 rounded-xl border border-border">
+          <Button variant="ghost" size="icon" onClick={() => setSelectedId(null)} className={!selectedId ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}><MousePointer2 size={18} /></Button>
           <Button variant="ghost" size="icon" onClick={() => {
             const newB: TextBlock = { id: `manual-${Date.now()}`, text: 'New Observation', x: 100, y: 150, width: 400, height: 40, fontSize: 16 * SCALE, fontWeight: 'normal', fontStyle: 'normal', color: '#000000', pageNum: 1 };
             setBlocks([...blocks, newB]); setSelectedId(newB.id);
-          }} className="text-slate-500"><Type size={18} /></Button>
+          }} className="text-muted-foreground"><Type size={18} /></Button>
         </div>
 
         {selectedBlock && (
-          <div className="flex items-center gap-3 animate-in-right bg-slate-950 p-1 px-4 rounded-xl border border-slate-800">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">Text Style</span>
-            <Button variant="ghost" size="icon" onClick={() => setBlocks(prev => prev.map(b => b.id === selectedId ? {...b, fontWeight: b.fontWeight === 'bold' ? 'normal' : 'bold'} : b))} className={selectedBlock.fontWeight === 'bold' ? 'text-blue-500' : 'text-slate-600'}><Bold size={16} /></Button>
-            <Button variant="ghost" size="icon" onClick={() => setBlocks(prev => prev.map(b => b.id === selectedId ? {...b, fontStyle: b.fontStyle === 'italic' ? 'normal' : 'italic'} : b))} className={selectedBlock.fontStyle === 'italic' ? 'text-blue-500' : 'text-slate-600'}><Italic size={16} /></Button>
+          <div className="flex items-center gap-3 animate-in-right app-bg p-1 px-4 rounded-xl border border-border">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">Text Style</span>
+            <Button variant="ghost" size="icon" onClick={() => setBlocks(prev => prev.map(b => b.id === selectedId ? {...b, fontWeight: b.fontWeight === 'bold' ? 'normal' : 'bold'} : b))} className={selectedBlock.fontWeight === 'bold' ? 'text-primary' : 'text-muted-foreground'}><Bold size={16} /></Button>
+            <Button variant="ghost" size="icon" onClick={() => setBlocks(prev => prev.map(b => b.id === selectedId ? {...b, fontStyle: b.fontStyle === 'italic' ? 'normal' : 'italic'} : b))} className={selectedBlock.fontStyle === 'italic' ? 'text-primary' : 'text-muted-foreground'}><Italic size={16} /></Button>
             <input type="color" value={selectedBlock.color} onChange={e => setBlocks(prev => prev.map(b => b.id === selectedId ? {...b, color: e.target.value} : b))} className="w-6 h-6 rounded-full overflow-hidden border-none cursor-pointer" />
             <Button variant="ghost" size="icon" onClick={() => { setBlocks(blocks.filter(b => b.id !== selectedId)); setSelectedId(null); }} className="text-red-500 ml-2"><Trash2 size={16} /></Button>
           </div>
         )}
 
         <div className="ml-auto flex items-center gap-4">
-          <input type="range" min="0.4" max="1.5" step="0.05" value={zoom} onChange={e => setZoom(parseFloat(e.target.value))} className="w-32 h-1 accent-blue-500" />
-          <span className="text-xs font-mono text-slate-500">{Math.round(zoom * 100)}%</span>
+          <input type="range" min="0.4" max="1.5" step="0.05" value={zoom} onChange={e => setZoom(parseFloat(e.target.value))} className="w-32 h-1 accent-primary" />
+          <span className="text-xs font-mono text-muted-foreground">{Math.round(zoom * 100)}%</span>
         </div>
       </div>
 
       {/* Canvas Area */}
-      <div className="flex-1 overflow-auto bg-[#050810] p-12 custom-scrollbar flex flex-col items-center gap-12" onClick={() => setSelectedId(null)}>
+      <div className="flex-1 overflow-auto bg-black p-12 custom-scrollbar flex flex-col items-center gap-12" onClick={() => setSelectedId(null)}>
         {pages.map((pg, idx) => {
           const pageNum = idx + 1;
           const pageBlocks = blocks.filter(b => b.pageNum === pageNum);
@@ -432,7 +432,7 @@ const Editor: React.FC<EditorProps> = ({
             <div 
               key={idx} 
               style={{ width: pg.width, height: pg.height, transform: `scale(${zoom})`, transformOrigin: 'top center' }} 
-              className="bg-white shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative flex-shrink-0"
+              className="app-doc-page relative flex-shrink-0"
               onClick={e => e.stopPropagation()}
             >
               {/* Background Canvas (Rendered PDF Image) */}
@@ -456,11 +456,11 @@ const Editor: React.FC<EditorProps> = ({
                     onMouseDown={e => handleBlockMouseDown(e, block.id)}
                   >
                     {/* Block Border */}
-                    <div className={`absolute inset-0 rounded ${selectedId === block.id ? 'border-2 border-blue-500' : 'border border-transparent hover:border-blue-500/30'}`} style={{ pointerEvents: 'none' }} />
+                    <div className={`absolute inset-0 rounded ${selectedId === block.id ? 'border-2 border-primary' : 'border border-transparent hover:border-primary/30'}`} style={{ pointerEvents: 'none' }} />
                     
                     {/* Drag Handle */}
                     {selectedId === block.id && (
-                      <div className="absolute -top-6 left-0 bg-blue-600 text-white text-[9px] font-bold px-2 py-0.5 rounded flex items-center gap-1 shadow-lg">
+                      <div className="absolute -top-6 left-0 bg-primary text-primary-foreground text-[9px] font-bold px-2 py-0.5 rounded flex items-center gap-1 shadow-lg">
                         <GripVertical size={10} /> Drag to position
                       </div>
                     )}
@@ -496,9 +496,9 @@ const Editor: React.FC<EditorProps> = ({
 
               {/* Page Number Indicator */}
               <div className="absolute -right-16 top-0 h-full flex flex-col justify-center items-center gap-2">
-                <div className="h-full w-[2px] bg-slate-800/50" />
-                <span className="text-slate-600 font-bold text-xs uppercase vertical-text">Page {pageNum}</span>
-                <div className="h-full w-[2px] bg-slate-800/50" />
+                <div className="h-full w-[2px] app-surface-raised" />
+                <span className="text-muted-foreground font-bold text-xs uppercase vertical-text">Page {pageNum}</span>
+                <div className="h-full w-[2px] app-surface-raised" />
               </div>
             </div>
           );

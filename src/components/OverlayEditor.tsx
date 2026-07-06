@@ -313,19 +313,19 @@ const OverlayEditor: React.FC<OverlayEditorProps> = ({
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full w-full bg-slate-900/30 rounded-3xl overflow-hidden border border-slate-800/50 backdrop-blur-sm shadow-2xl">
+    <div className="flex flex-col h-full w-full app-bg rounded-3xl overflow-hidden border border-border backdrop-blur-sm shadow-2xl">
 
       {/* Status Toast */}
       {status && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[200] bg-electric-blue text-white px-5 py-2 rounded-full text-xs font-black uppercase tracking-widest shadow-lg animate-bounce pointer-events-none">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[200] bg-primary text-primary-foreground px-5 py-2 rounded-full text-xs font-black uppercase tracking-widest shadow-accent-glow animate-bounce pointer-events-none">
           {status}
         </div>
       )}
 
       {/* ── Toolbar ───────────────────────────────────────────────────────── */}
-      <div className="bg-slate-950/90 p-3 px-5 border-b border-slate-800 flex items-center gap-3 flex-wrap">
+      <div className="app-editor-toolbar p-3 px-5 flex items-center gap-3 flex-wrap">
         {/* Import */}
-        <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="border-slate-700 h-8 text-xs">
+        <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="border-border h-8 text-xs">
           <Plus size={14} className="mr-1" /> Import PDF
         </Button>
         <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleFileImport} />
@@ -336,7 +336,7 @@ const OverlayEditor: React.FC<OverlayEditorProps> = ({
             size="sm"
             onClick={handleOCR}
             disabled={isOcring}
-            className="bg-amber-600 hover:bg-amber-500 text-white h-8 text-xs"
+            className="bg-amber-600 hover:bg-amber-500 text-foreground h-8 text-xs"
           >
             {isOcring
               ? <Loader2 size={14} className="animate-spin mr-1" />
@@ -345,33 +345,33 @@ const OverlayEditor: React.FC<OverlayEditorProps> = ({
           </Button>
         )}
 
-        <div className="h-5 border-l border-slate-700" />
+        <div className="h-5 border-l border-border" />
 
         {/* Text formatting — only shown when a block is selected */}
         {selectedBlock && (
           <>
             <button
               onClick={() => updateBlock(selectedId!, { fontWeight: selectedBlock.fontWeight === 'bold' ? 'normal' : 'bold' })}
-              className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${selectedBlock.fontWeight === 'bold' ? 'bg-electric-blue text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+              className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${selectedBlock.fontWeight === 'bold' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:app-surface-raised'}`}
               title="Bold"
             >
               <Bold size={13} />
             </button>
             <button
               onClick={() => updateBlock(selectedId!, { fontStyle: selectedBlock.fontStyle === 'italic' ? 'normal' : 'italic' })}
-              className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${selectedBlock.fontStyle === 'italic' ? 'bg-electric-blue text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+              className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${selectedBlock.fontStyle === 'italic' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:app-surface-raised'}`}
               title="Italic"
             >
               <Italic size={13} />
             </button>
 
             {/* Font size */}
-            <div className="flex items-center gap-1 bg-slate-900 rounded-lg border border-slate-800 px-2 py-1">
-              <Type size={12} className="text-slate-500" />
+            <div className="flex items-center gap-1 app-surface rounded-lg border border-border px-2 py-1">
+              <Type size={12} className="text-muted-foreground" />
               <select
                 value={selectedBlock.fontSize}
                 onChange={e => updateBlock(selectedId!, { fontSize: parseInt(e.target.value) })}
-                className="bg-transparent text-xs text-white border-none outline-none cursor-pointer"
+                className="bg-transparent text-xs text-foreground border-none outline-none cursor-pointer"
               >
                 {[10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64].map(s => (
                   <option key={s} value={Math.round(s * SCALE)}>{s}px</option>
@@ -400,18 +400,18 @@ const OverlayEditor: React.FC<OverlayEditorProps> = ({
         )}
 
         {/* Zoom */}
-        <div className="ml-auto flex items-center gap-2 bg-slate-900 rounded-xl border border-slate-800 px-3 py-1">
-          <span className="text-[10px] text-slate-500 font-black uppercase">Zoom</span>
+        <div className="ml-auto flex items-center gap-2 app-surface rounded-xl border border-border px-3 py-1">
+          <span className="text-[10px] text-muted-foreground font-black uppercase">Zoom</span>
           <input
             type="range" min="0.3" max="2" step="0.05" value={zoom}
             onChange={e => setZoom(parseFloat(e.target.value))}
-            className="w-20 h-1 appearance-none accent-electric-blue bg-slate-800 rounded"
+            className="w-20 h-1 appearance-none accent-primary app-surface-raised rounded"
           />
-          <span className="text-[10px] font-mono text-slate-400 w-8">{Math.round(zoom * 100)}%</span>
+          <span className="text-[10px] font-mono text-muted-foreground w-8">{Math.round(zoom * 100)}%</span>
         </div>
 
         {/* Save */}
-        <Button onClick={handleSave} disabled={isSaving} className="bg-electric-blue text-white h-8 text-xs ml-1">
+        <Button onClick={handleSave} disabled={isSaving} className="bg-primary text-primary-foreground h-8 text-xs ml-1 shadow-accent-glow">
           {isSaving ? <Loader2 size={14} className="animate-spin mr-1" /> : <Save size={14} className="mr-1" />}
           Save Edits
         </Button>
@@ -420,7 +420,7 @@ const OverlayEditor: React.FC<OverlayEditorProps> = ({
       {/* ── Workspace ─────────────────────────────────────────────────────── */}
       <div
         ref={workspaceRef}
-        className="flex-1 overflow-auto bg-slate-950/50 flex flex-col items-center p-8 gap-8"
+        className="flex-1 overflow-auto app-bg flex flex-col items-center p-8 gap-8"
         onClick={() => setSelectedId(null)}
       >
         {/* Empty state */}
@@ -429,14 +429,14 @@ const OverlayEditor: React.FC<OverlayEditorProps> = ({
             <div className="w-16 h-20 border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center">
               <Type size={24} className="text-slate-600" />
             </div>
-            <p className="text-slate-500 font-mono text-sm">Import a PDF to begin</p>
+            <p className="text-muted-foreground font-mono text-sm">Import a PDF to begin</p>
           </div>
         )}
 
         {isLoadingPdf && (
           <div className="flex flex-col items-center justify-center h-full gap-4">
-            <Loader2 size={40} className="text-electric-blue animate-spin" />
-            <p className="text-slate-400 font-mono text-sm">Rendering PDF...</p>
+            <Loader2 size={40} className="text-primary animate-spin" />
+            <p className="text-muted-foreground font-mono text-sm">Rendering PDF...</p>
           </div>
         )}
 
@@ -459,14 +459,14 @@ const OverlayEditor: React.FC<OverlayEditorProps> = ({
             return (
               <div key={pageIdx} style={{ position: 'relative' }}>
                 {/* Page label */}
-                <div className="absolute -top-6 left-0 text-[10px] text-slate-500 font-mono select-none">
+                <div className="absolute -top-6 left-0 text-[10px] text-muted-foreground font-mono select-none">
                   Page {pageNum} of {pages.length}
                 </div>
 
                 {/* Page container — PDF canvas + overlay together */}
                 <div
                   style={{ width: pg.width, height: pg.height, position: 'relative' }}
-                  className="bg-white shadow-[0_20px_60px_-10px_rgba(0,0,0,0.6)] overflow-hidden"
+                  className="app-doc-page overflow-hidden"
                   onClick={e => e.stopPropagation()}
                 >
                   {/* ── Background: PDF Canvas (read-only) ──── */}
@@ -489,7 +489,7 @@ const OverlayEditor: React.FC<OverlayEditorProps> = ({
 
                   {/* Add block button — bottom-right of page */}
                   <button
-                    className="absolute bottom-3 right-3 z-20 flex items-center gap-1 bg-electric-blue/90 hover:bg-electric-blue text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-lg transition-all opacity-60 hover:opacity-100"
+                    className="absolute bottom-3 right-3 z-20 flex items-center gap-1 bg-primary/90 hover:bg-primary text-primary-foreground text-[10px] font-bold px-2 py-1 rounded-lg shadow-accent-glow transition-all opacity-60 hover:opacity-100"
                     onClick={e => { e.stopPropagation(); addBlock(pageNum); }}
                     title="Add text block to this page"
                   >
@@ -548,11 +548,11 @@ const DraggableBlock: React.FC<DraggableBlockProps> = ({
         style={{
           position: 'absolute',
           inset: -2,
-          border: isSelected ? '1.5px solid #3b82f6' : '1px solid transparent',
+          border: isSelected ? '1.5px solid var(--primary)' : '1px solid transparent',
           borderRadius: 4,
           pointerEvents: 'none',
           transition: 'border-color 0.15s',
-          boxShadow: isSelected ? '0 0 0 2px rgba(59,130,246,0.15)' : 'none',
+          boxShadow: isSelected ? '0 0 0 2px rgba(255,255,255,0.15)' : 'none',
         }}
       />
 
@@ -566,11 +566,11 @@ const DraggableBlock: React.FC<DraggableBlockProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: 4,
-            background: '#3b82f6',
+            background: 'var(--primary)',
             borderRadius: '4px 4px 0 0',
             padding: '2px 6px',
             fontSize: 10,
-            color: 'white',
+            color: 'var(--primary-foreground)',
             fontWeight: 700,
             cursor: 'move',
             whiteSpace: 'nowrap',
@@ -606,7 +606,7 @@ const DraggableBlock: React.FC<DraggableBlockProps> = ({
           wordBreak: 'break-word',
           cursor: 'text',
           transition: 'background 0.15s',
-          caretColor: '#1d4ed8',
+          caretColor: 'var(--primary)',
         }}
       />
     </div>

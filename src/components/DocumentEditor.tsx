@@ -390,59 +390,59 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-slate-200 overflow-hidden relative font-sans">
+    <div className="flex flex-col h-full w-full app-bg overflow-hidden relative font-sans">
       {/* Dynamic Toolbar */}
-      <div className="bg-slate-900 text-white p-3 border-b border-slate-700 flex items-center justify-between sticky top-0 z-50 shadow-2xl">
+      <div className="app-editor-toolbar p-3 flex items-center justify-between sticky top-0 z-50 shadow-2xl">
         <div className="flex items-center gap-6">
           <input type="file" ref={fileInputRef} onChange={handleImportPdf} accept=".pdf" className="hidden" />
-          <Button onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="bg-blue-600 hover:bg-blue-500 text-white font-bold h-9">
+          <Button onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="bg-primary hover:bg-foreground hover:text-background text-primary-foreground font-bold h-9">
             {isImporting ? <Loader2 className="animate-spin mr-2" size={16} /> : <FileText className="mr-2" size={16} />}
             IMPORT PDF
           </Button>
 
           {/* Mode Switcher */}
-          <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700 h-9">
+          <div className="flex items-center app-surface rounded-lg p-1 border border-border h-9">
             <button 
               onClick={() => setMode('edit')} 
-              className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${mode === 'edit' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${mode === 'edit' ? 'bg-primary text-primary-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
             >
               EDIT TEXT
             </button>
             <button 
               onClick={() => setMode('move')} 
-              className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${mode === 'move' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${mode === 'move' ? 'bg-primary text-primary-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
             >
               MOVE BLOCKS
             </button>
           </div>
 
           {/* Zoom Controls */}
-          <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-2 h-9 border border-slate-700">
-            <Button variant="ghost" size="icon" onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} className="hover:bg-slate-700 h-7 w-7 text-slate-300">
+          <div className="flex items-center gap-2 app-surface rounded-lg px-2 h-9 border border-border">
+            <Button variant="ghost" size="icon" onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} className="hover:app-surface-raised h-7 w-7 text-foreground">
               <Minus size={14} />
             </Button>
-            <span className="text-xs font-mono min-w-[45px] text-center text-blue-400">
+            <span className="text-xs font-mono min-w-[45px] text-center text-primary">
               {Math.round(zoom * 100)}%
             </span>
-            <Button variant="ghost" size="icon" onClick={() => setZoom(Math.min(2.0, zoom + 0.1))} className="hover:bg-slate-700 h-7 w-7 text-slate-300">
+            <Button variant="ghost" size="icon" onClick={() => setZoom(Math.min(2.0, zoom + 0.1))} className="hover:app-surface-raised h-7 w-7 text-foreground">
               <Plus size={14} />
             </Button>
           </div>
 
           {/* Watermark Control */}
-          <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-2 h-9 border border-slate-700">
-            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Watermark:</span>
+          <div className="flex items-center gap-2 app-surface rounded-lg px-2 h-9 border border-border">
+            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Watermark:</span>
             <input 
               type="text" 
               value={watermarkText} 
               onChange={(e) => setWatermarkText(e.target.value)}
-              className="bg-slate-900 text-white text-xs px-2 py-1 rounded border border-slate-700 focus:outline-none focus:border-blue-500 w-24 font-serif"
+              className="bg-muted text-foreground text-xs px-2 py-1 rounded border border-border focus:outline-none focus:border-primary w-24 font-serif"
               placeholder="Text"
             />
             <select
               value={watermarkSelection}
               onChange={(e) => setWatermarkSelection(e.target.value)}
-              className="bg-slate-900 text-white text-xs px-2 py-1 rounded border border-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer"
+              className="bg-muted text-foreground text-xs px-2 py-1 rounded border border-border focus:outline-none focus:border-primary cursor-pointer"
             >
               <option value="auto">Auto (Skip Images)</option>
               <option value="all">All Pages</option>
@@ -452,11 +452,11 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={handleExportPdf} disabled={isExporting} className="border-slate-700 text-slate-300 hover:bg-slate-800 h-9">
+          <Button variant="outline" onClick={handleExportPdf} disabled={isExporting} className="border-border text-foreground hover:app-surface-raised h-9">
             {isExporting ? <Loader2 className="animate-spin mr-2" size={16} /> : <Download className="mr-2" size={16} />} 
             Export
           </Button>
-          <Button onClick={handleSaveChanges} disabled={isExporting} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-9">
+          <Button onClick={handleSaveChanges} disabled={isExporting} className="bg-emerald-600 hover:bg-emerald-500 text-foreground font-bold h-9">
             {isExporting ? <Loader2 className="animate-spin mr-2" size={16} /> : <Save className="mr-2" size={16} />} 
             Save Changes
           </Button>
@@ -464,11 +464,11 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
       </div>
 
       {/* High-Resolution Page Viewer */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-8 md:p-16 space-y-20 flex flex-col items-center bg-slate-200/80 scroll-smooth">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-8 md:p-16 space-y-20 flex flex-col items-center app-bg scroll-smooth">
         {pages.map(page => (
           <div 
             key={page.id}
-            className="relative shadow-[0_30px_60px_rgba(0,0,0,0.3)] bg-white overflow-hidden transition-all duration-300 origin-top mb-4"
+            className="app-doc-page relative overflow-hidden transition-all duration-300 origin-top mb-4"
             style={{ 
               width: `${(page.width / 2) * zoom}px`, 
               height: `${(page.height / 2) * zoom}px`,
@@ -507,7 +507,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
                 suppressContentEditableWarning
                 onMouseDown={(e) => startDrag(e, page.id, block)}
                 onBlur={(e) => updateBlock(page.id, block.id, e.currentTarget.innerText)}
-                className={`absolute transition-all rounded-sm leading-none group z-10 ${mode === 'move' ? 'cursor-move ring-1 ring-blue-400/30 hover:ring-blue-500' : 'cursor-text hover:bg-blue-500/10 focus:bg-white focus:outline-blue-500'} ${dragBlock?.blockId === block.id ? 'opacity-50 ring-2 ring-blue-400' : ''}`}
+                className={`absolute transition-all rounded-sm leading-none group z-10 ${mode === 'move' ? 'cursor-move ring-1 ring-primary/30 hover:ring-primary' : 'cursor-text hover:bg-primary/10 focus:bg-background focus:outline-primary'} ${dragBlock?.blockId === block.id ? 'opacity-50 ring-2 ring-primary' : ''}`}
                 style={{
                   left: `${(block.x / 2) * zoom}px`,
                   top: `${(block.y / 2) * zoom}px`,
@@ -525,16 +525,16 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
             ))}
             
             {/* Page Floating Badge */}
-            <div className="absolute top-4 right-4 bg-slate-900/10 backdrop-blur-md text-[10px] font-bold px-2 py-1 rounded-full text-slate-500 uppercase tracking-tighter">
+            <div className="absolute top-4 right-4 app-surface backdrop-blur-md text-[10px] font-bold px-2 py-1 rounded-full text-muted-foreground uppercase tracking-tighter">
               PAGE {page.id}
             </div>
           </div>
         ))}
 
         {pages.length === 0 && !isImporting && (
-          <div className="flex flex-col items-center justify-center h-[600px] w-full max-w-4xl border-2 border-dashed border-slate-400 bg-slate-200/50 rounded-[40px] text-slate-500 gap-4">
-             <div className="w-20 h-20 bg-slate-300 rounded-full flex items-center justify-center shadow-inner">
-                <FileText size={40} className="text-slate-400" />
+          <div className="flex flex-col items-center justify-center h-[600px] w-full max-w-4xl border-2 border-dashed border-slate-400 app-bg rounded-[40px] text-muted-foreground gap-4">
+             <div className="w-20 h-20 app-surface rounded-full flex items-center justify-center shadow-inner">
+                <FileText size={40} className="text-muted-foreground" />
              </div>
              <div className="text-center">
                <h3 className="text-xl font-bold text-slate-700">Document Engine Offline</h3>

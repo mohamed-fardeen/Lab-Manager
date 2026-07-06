@@ -42,14 +42,22 @@ const request = async (endpoint: string, options: RequestOptions = {}) => {
 
   if (!response.ok) {
     const errorText = await response.text();
-    let errorMessage = 'API Request Failed';
+    let errorMessage = `HTTP ${response.status}`;
     try {
       const errorJson = JSON.parse(errorText);
       errorMessage = errorJson.message || errorJson.error || errorMessage;
     } catch (e) {
-      errorMessage = errorText || errorMessage;
+      // Response wasn't JSON — fall back to whatever text the server sent,
+      // or to a default if the body was empty.
+      errorMessage = errorText?.trim() || errorMessage;
     }
-    throw new Error(errorMessage);
+    // Prefix with status + URL so 500s are immediately diagnosable from the
+    // thrown error message (the response body alone often just says
+    // "Internal Server Error" with no context).
+    const finalMessage = `${response.status} ${response.statusText || ''} on ${endpoint} — ${errorMessage}`.trim();
+    // eslint-disable-next-line no-console
+    console.error(`[api] ${finalMessage}`, { status: response.status, body: errorText });
+    throw new Error(finalMessage);
   }
 
   return await response.json();
@@ -59,5 +67,5 @@ export const api = {
   get: (url: string) => request(url, { method: 'GET' }),
   post: (url: string, data?: any) => request(url, { method: 'POST', data }),
   put: (url: string, data?: any) => request(url, { method: 'PUT', data }),
-  delete: (url: string) => request(url, { method: 'DELETE' }),
+  delete: (url: string, data?: any) => request(url, { method: 'DELETE', data }),
 };

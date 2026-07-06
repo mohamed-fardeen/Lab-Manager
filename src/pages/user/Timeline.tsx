@@ -62,14 +62,14 @@ const Timeline: React.FC<TimelineProps> = ({
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
         <div>
-          <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">Enhanced Discovery Timeline</h2>
-          <p className="text-[10px] font-bold text-slate-600 uppercase mt-1">Intelligence Sequencing Feed</p>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Enhanced Discovery Timeline</h2>
+          <p className="text-[10px] font-bold text-muted-foreground/60 uppercase mt-1">Intelligence Sequencing Feed</p>
         </div>
         <div className="flex items-center gap-2">
           <select 
             value={timelineTypeFilter}
             onChange={(e) => setTimelineTypeFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase text-slate-400 outline-none focus:ring-1 focus:ring-electric-blue"
+            className="bg-card border border-border rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase text-muted-foreground outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="">All Types</option>
             <option value="program">Programs</option>
@@ -79,7 +79,7 @@ const Timeline: React.FC<TimelineProps> = ({
           <select 
             value={timelineSubjectFilter}
             onChange={(e) => setTimelineSubjectFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase text-slate-400 outline-none focus:ring-1 focus:ring-electric-blue"
+            className="bg-card border border-border rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase text-muted-foreground outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="">All Subjects</option>
             {folders.filter(f => !f.parent_id).map(f => (
@@ -92,30 +92,30 @@ const Timeline: React.FC<TimelineProps> = ({
       <div className="space-y-8">
         {loading && (
           <div className="py-20 text-center space-y-4">
-            <RefreshCcw size={32} className="text-electric-blue animate-spin mx-auto" />
-            <p className="text-sm font-bold uppercase tracking-widest text-slate-500">Loading timeline...</p>
+            <RefreshCcw size={32} className="text-primary animate-spin mx-auto" />
+            <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Loading timeline...</p>
           </div>
         )}
         
         {!loading && allFiles.length === 0 && (
-          <div className="py-20 text-center space-y-4 glass-panel border-slate-800">
-            <Clock size={48} className="text-slate-700 mx-auto" />
+          <div className="py-20 text-center space-y-4 glass-panel border-border">
+            <Clock size={48} className="text-muted-foreground/30 mx-auto" />
             <h3 className="text-lg font-bold">No activity yet</h3>
-            <p className="text-sm text-slate-500">Your research discoveries will appear here as you archive them.</p>
+            <p className="text-sm text-muted-foreground">Your research discoveries will appear here as you archive them.</p>
           </div>
         )}
 
         {!loading && allFiles.length > 0 && (
           filtered.length === 0 ? (
             <div className="py-20 text-center space-y-4">
-              <p className="text-sm text-slate-500">No records match your timeline filters.</p>
+              <p className="text-sm text-muted-foreground">No records match your timeline filters.</p>
             </div>
           ) : (
             ['Today', 'Yesterday', 'Older Intelligence'].map(groupName => {
               if (!groups[groupName]) return null;
               return (
                 <div key={groupName} className="space-y-3">
-                  <h3 className="text-[10px] font-black text-electric-blue uppercase tracking-widest px-1 flex items-center gap-2">
+                  <h3 className="text-[10px] font-black text-primary uppercase tracking-widest px-1 flex items-center gap-2">
                     <Clock size={12} />
                     {groupName}
                   </h3>
@@ -129,18 +129,18 @@ const Timeline: React.FC<TimelineProps> = ({
                         <div 
                           key={file.id} 
                           onDoubleClick={() => setPreviewFile(file)}
-                          className="glass-panel p-4 flex items-center justify-between hover:bg-slate-800/40 transition-all group cursor-pointer border-l-2 border-l-transparent hover:border-l-electric-blue"
+                          className="glass-panel p-4 flex items-center justify-between hover:bg-muted/40 transition-all group cursor-pointer border-l-2 border-l-transparent hover:border-l-primary"
                         >
                           <div className="flex items-center gap-4 truncate">
-                            <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center border border-slate-800 text-slate-500 group-hover:text-electric-blue group-hover:border-electric-blue/30 transition-colors">
+                            <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center border border-border text-muted-foreground group-hover:text-primary group-hover:border-primary/30 transition-colors">
                               {isProgram ? <Code size={18} /> : isRecord ? <FileText size={18} /> : <Zap size={18} />}
                             </div>
                             <div className="truncate">
-                              <p className="text-sm font-bold text-white truncate">
+                              <p className="text-sm font-bold text-foreground truncate">
                                 {file.name}
                               </p>
-                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5 mt-0.5">
-                                {file.language && <span className="text-electric-blue">{file.language}</span>}
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 mt-0.5">
+                                {file.language && <span className="text-primary">{file.language}</span>}
                                 {file.language && <span>•</span>}
                                 <span>({folder?.name || 'Archive'})</span>
                                 <span>•</span>
@@ -149,10 +149,10 @@ const Timeline: React.FC<TimelineProps> = ({
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setPreviewFile(file); }} className="h-8 w-8 text-slate-600 hover:text-electric-blue">
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setPreviewFile(file); }} className="h-8 w-8 text-muted-foreground/60 hover:text-primary">
                               <Search size={16} />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); downloadFile(file); }} className="h-8 w-8 text-slate-600 hover:text-electric-blue">
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); downloadFile(file); }} className="h-8 w-8 text-muted-foreground/60 hover:text-primary">
                               <Download size={16} />
                             </Button>
                           </div>

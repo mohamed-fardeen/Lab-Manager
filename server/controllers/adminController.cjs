@@ -545,7 +545,7 @@ exports.createSubject = async (req, res) => {
         const { data: profiles, error: profileError } = await supabaseAdmin.from('profiles').select('id');
         if (profileError) throw profileError;
 
-        const inserts = profiles.map(p => ({ name, parent_id: null, user_id: p.id }));
+        const inserts = profiles.map(p => ({ name, parent_id: null, user_id: p.id, type: 'subject' }));
         // Also insert one for the admin themselves if not in profiles? Admin is in profiles.
         
         const { data, error } = await supabaseAdmin
@@ -574,7 +574,7 @@ exports.createExperiment = async (req, res) => {
             
         if (subjError) throw subjError;
 
-        const inserts = subjects.map(s => ({ name, parent_id: s.id, user_id: s.user_id }));
+        const inserts = subjects.map(s => ({ name, parent_id: s.id, user_id: s.user_id, type: 'category' }));
 
         const { data, error } = await supabaseAdmin
             .from('folders')
@@ -586,6 +586,67 @@ exports.createExperiment = async (req, res) => {
     } catch (error) {
         console.error('Create Experiment Error:', error);
         res.status(500).json({ success: false, message: 'Failed to create experiment globally' });
+    }
+};
+
+exports.createGlobalFile = async (req, res) => {
+    try {
+        const { name, experimentName, subjectName } = req.body;
+        
+        // 1. Find all subjects with subjectName
+        const { data: subjects, error: subjError } = await supabaseAdmin
+            .from('folders')
+            .select('id')
+            .eq('name', subjectName)
+            .is('parent_id', null);
+            
+        if (subjError) throw subjError;
+        if (!subjects || subjects.length === 0) {
+            return res.status(404).json({ success: false, message: 'Subject not found' });
+        }
+        
+        const subjectIds = subjects.map(s => s.id);
+        
+        // 2. Find all experiments under those subjects with experimentName
+        const { data: experiments, error: expError } = await supabaseAdmin
+            .from('folders')
+            .select('id, user_id')
+            .eq('name', experimentName)
+            .in('parent_id', subjectIds);
+            
+        if (expError) throw expError;
+        
+        const fileType = name.endsWith('.md') ? 'text/markdown' 
+                       : name.endsWith('.pdf') ? 'application/pdf'
+                       : name.endsWith('.json') ? 'application/json'
+                       : name.endsWith('.csv') ? 'text/csv'
+                       : name.endsWith('.pdf') ? 'application/pdf' // duplicate fallback but ok
+                       : 'text/plain';
+
+        const inserts = experiments.map(exp => ({
+            name,
+            file_type: fileType,
+            size: 0,
+            folder_id: exp.id,
+            user_id: exp.user_id,
+            public_id: `empty_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+            status: 'draft'
+        }));
+        
+        if (inserts.length === 0) {
+            return res.status(404).json({ success: false, message: 'No matching experiments found across users' });
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('files')
+            .insert(inserts)
+            .select();
+
+        if (error) throw error;
+        res.json({ success: true, file: data[0] });
+    } catch (error) {
+        console.error('Create Global File Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to create file globally' });
     }
 };
 

@@ -54,7 +54,7 @@ const EditorPage: React.FC<EditorPageProps> = ({
         </Button>
       </div>
       
-      <div className="flex-1 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
+      <div className="flex-1 bg-background rounded-2xl border border-border overflow-hidden">
         {editorMode === 'layout' ? (
           <Editor 
             fileId={editingFileId || undefined}

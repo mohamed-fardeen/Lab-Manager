@@ -28,6 +28,7 @@ import AIMonitor from "./components/admin/AIMonitor";
 import StorageManager from "./components/admin/StorageManager";
 import BroadcastManager from "./components/admin/BroadcastManager";
 import AdminSettings from "./components/admin/AdminSettings";
+import CommonFileStructure from "./components/admin/CommonFileStructure";
 
 // New Layouts & Pages
 import AdminLayout from "./components/layouts/AdminLayout";
@@ -100,7 +101,7 @@ const NotFound: React.FC<{ isAuthenticated: boolean; onLogout: (skipNavigate?: b
 
   if (isAdminPath) {
     return (
-      <div className="h-screen w-full bg-slate-950 flex flex-col items-center justify-center space-y-4">
+      <div className="h-screen w-full bg-background flex flex-col items-center justify-center space-y-4">
         <div className="w-10 h-10 border-4 border-red-500/20 border-t-red-500 rounded-full animate-spin" />
         <p className="text-red-400 text-xs font-black uppercase tracking-widest">Redirecting to Admin Portal...</p>
       </div>
@@ -701,25 +702,25 @@ function App() {
     <>
       <LandingPage onLoginClick={() => setLoginModalOpen(true)} />
       <Dialog open={loginModalOpen} onOpenChange={setLoginModalOpen}>
-        <DialogContent className="sm:max-w-[420px] bg-[#020617] border-slate-800 p-0 overflow-hidden rounded-3xl">
+        <DialogContent className="sm:max-w-[420px] bg-card border-border p-0 overflow-hidden rounded-3xl">
           <div className="p-8 space-y-6">
             <div className="space-y-2 text-center">
-              <div className="mx-auto w-12 h-12 rounded-xl bg-electric-blue flex items-center justify-center shadow-blue-glow mb-4">
-                <Zap size={24} className="text-white fill-white" />
+              <div className="mx-auto w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-accent-glow mb-4">
+                <Zap size={24} className="text-foreground fill-white" />
               </div>
-              <h2 className="text-2xl font-black italic tracking-tighter uppercase font-orbitron">Authorization</h2>
-              <p className="text-slate-500 text-xs">Verify your research protocol to proceed</p>
+              <h2 className="text-2xl font-black italic tracking-tighter uppercase font-orbitron text-foreground">Authorization</h2>
+              <p className="text-muted-foreground text-xs">Verify your research protocol to proceed</p>
             </div>
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Researcher RRN</label>
-                <input type="text" name="user-rrn" autoComplete="off" value={loginRrn} onChange={(e) => setLoginRrn(e.target.value)} placeholder="Enter RRN" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none transition-all placeholder:text-slate-700" />
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-1">Researcher RRN</label>
+                <input type="text" name="user-rrn" autoComplete="off" value={loginRrn} onChange={(e) => setLoginRrn(e.target.value)} placeholder="Enter RRN" className="w-full bg-muted border border-border rounded-2xl p-4 text-sm text-foreground focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-muted-foreground/30" />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Access Protocol</label>
-                <input type="password" name="user-access-key" autoComplete="off" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} placeholder="••••••••" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none transition-all placeholder:text-slate-700" />
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-1">Access Protocol</label>
+                <input type="password" name="user-access-key" autoComplete="off" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} placeholder="••••••••" className="w-full bg-muted border border-border rounded-2xl p-4 text-sm text-foreground focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-muted-foreground/30" />
               </div>
-              <Button onClick={handleLogin} disabled={loginLoading} className="w-full h-14 bg-electric-blue text-white font-black uppercase tracking-widest hover:bg-white hover:text-electric-blue transition-all rounded-2xl mt-4 border-none shadow-blue-glow">
+              <Button onClick={handleLogin} disabled={loginLoading} className="w-full h-14 bg-primary text-primary-foreground font-black uppercase tracking-widest hover:bg-foreground hover:text-background transition-all rounded-2xl mt-4 border-none shadow-accent-glow">
                 {loginLoading ? 'Authenticating...' : 'Establish Connection'}
               </Button>
             </div>
@@ -731,9 +732,9 @@ function App() {
 
   if (loading) {
     return (
-      <div className="h-screen w-full bg-slate-950 flex flex-col items-center justify-center space-y-4">
-        <div className="w-12 h-12 border-4 border-electric-blue/20 border-t-electric-blue rounded-full animate-spin"></div>
-        <div className="text-electric-blue font-bold tracking-widest uppercase text-sm">Initializing System...</div>
+      <div className="h-screen w-full bg-background flex flex-col items-center justify-center space-y-4">
+        <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+        <div className="text-primary font-bold tracking-widest uppercase text-sm">Initializing System...</div>
       </div>
     );
   }
@@ -772,6 +773,7 @@ function App() {
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<UserManagement />} />
             <Route path="/admin/data" element={<DataManager />} />
+            <Route path="/admin/structure" element={<CommonFileStructure />} />
             <Route path="/admin/activity" element={<Activity />} />
             <Route path="/admin/analytics" element={<Analytics />} />
             <Route path="/admin/ai-monitor" element={<AIMonitor />} />
@@ -787,7 +789,7 @@ function App() {
       {isAuthenticated && (
         <button onClick={() => setIsChatOpen(!isChatOpen)} className="ai-fab" title="Query Lab-Bot">
           {isChatOpen ? <X size={24} /> : <MessageSquare size={24} />}
-          {!isChatOpen && <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-slate-950 animate-pulse" />}
+          {!isChatOpen && <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-background animate-pulse" />}
         </button>
       )}
 
@@ -795,40 +797,40 @@ function App() {
       <AnimatePresence>
         {isChatOpen && isAuthenticated && (
           <motion.aside initial={{ opacity: 0, y: 20, scale: 0.95, transformOrigin: 'bottom right' }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }} className="ai-assistant-overlay">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+            <div className="p-4 border-b border-border flex items-center justify-between bg-background/40">
               <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-md bg-electric-blue flex items-center justify-center shadow-blue-glow"><Zap size={14} className="text-white fill-white" /></div>
+                <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center shadow-accent-glow"><Zap size={14} className="text-primary-foreground fill-primary-foreground" /></div>
                 <h2 className="font-bold text-sm">Lab-Bot Intelligence</h2>
               </div>
               <div className="flex items-center gap-2">
-                <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-md py-1 px-2 text-[10px] font-bold text-slate-400 focus:ring-1 focus:ring-electric-blue outline-none transition-all">
+                <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="bg-muted border border-border rounded-md py-1 px-2 text-[10px] font-bold text-muted-foreground focus:ring-1 focus:ring-primary outline-none transition-all">
                   <option value="llama-3.3-70b-versatile">Llama 3.3</option>
                   <option value="llama-3.2-11b-vision-preview">Vision 3.2</option>
                 </select>
-                <button onClick={() => setIsGeneratorModalOpen(true)} className="w-7 h-7 flex items-center justify-center rounded-md bg-electric-blue/10 text-electric-blue hover:bg-electric-blue hover:text-white transition-all shadow-blue-glow"><Sparkles size={14} /></button>
-                <button onClick={() => setIsChatOpen(false)} className="text-slate-500 hover:text-white transition-colors"><X size={16} /></button>
+                <button onClick={() => setIsGeneratorModalOpen(true)} className="w-7 h-7 flex items-center justify-center rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-accent-glow"><Sparkles size={14} /></button>
+                <button onClick={() => setIsChatOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X size={16} /></button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
               {chatHistory.length === 0 ? (
                 <div className="py-12 text-center space-y-4 px-6">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-2"><MessageSquare className="text-slate-500" size={24} /></div>
-                  <h3 className="font-bold text-sm text-slate-300">Analyzer Sequence Online</h3>
-                  <p className="text-[10px] text-slate-500 leading-relaxed uppercase tracking-widest font-bold">System ready for discovery analysis.</p>
+                  <div className="w-12 h-12 rounded-2xl app-surface-raised flex items-center justify-center mx-auto mb-2"><MessageSquare className="text-muted-foreground" size={24} /></div>
+                  <h3 className="font-bold text-sm text-foreground">Analyzer Sequence Online</h3>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed uppercase tracking-widest font-bold">System ready for discovery analysis.</p>
                 </div>
               ) : chatHistory.map((msg, i) => (
                 <div key={i} className={`flex flex-col animate-in ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`p-3 rounded-2xl max-w-[90%] text-xs ${msg.role === 'user' ? 'bg-electric-blue text-white rounded-tr-none shadow-blue-glow' : 'bg-slate-800/50 border border-slate-800 text-slate-200 rounded-tl-none prose prose-sm'}`}>
+                  <div className={`p-3 rounded-2xl max-w-[90%] text-xs ${msg.role === 'user' ? 'app-msg-own shadow-accent-glow' : 'app-msg-other prose prose-sm'}`}>
                     <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(msg.content) as string) }} />
                   </div>
                 </div>
               ))}
-              {isTyping && <div className="flex items-center gap-2 text-slate-500 px-2"><RefreshCcw size={12} className="animate-spin" /><span className="text-[10px] font-bold uppercase tracking-widest">Analyzing Lab Data...</span></div>}
+              {isTyping && <div className="flex items-center gap-2 text-muted-foreground px-2"><RefreshCcw size={12} className="animate-spin" /><span className="text-[10px] font-bold uppercase tracking-widest">Analyzing Lab Data...</span></div>}
             </div>
-            <div className="p-4 border-t border-slate-800 bg-slate-950/60 backdrop-blur-md">
-              <div className="flex items-end gap-2 glass-panel p-1.5 focus-within:ring-1 focus-within:ring-electric-blue transition-all bg-slate-900/80">
-                <textarea placeholder="Ask Lab-Bot..." value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} className="flex-1 bg-transparent border-none text-slate-100 text-xs p-2.5 outline-none resize-none max-h-32 min-h-[40px] font-medium" />
-                <Button size="icon" onClick={onSendMessage} disabled={!chatMessage.trim() || !selectedUser || isTyping} className="h-10 w-10 bg-electric-blue rounded-xl shadow-blue-glow flex-shrink-0"><Send size={18} /></Button>
+            <div className="p-4 border-t border-border bg-background/60 backdrop-blur-md">
+              <div className="flex items-end gap-2 glass-panel p-1.5 focus-within:ring-1 focus-within:ring-primary transition-all bg-muted/80">
+                <textarea placeholder="Ask Lab-Bot..." value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} className="flex-1 bg-transparent border-none text-foreground text-xs p-2.5 outline-none resize-none max-h-32 min-h-[40px] font-medium" />
+                <Button size="icon" onClick={onSendMessage} disabled={!chatMessage.trim() || !selectedUser || isTyping} className="h-10 w-10 bg-primary text-primary-foreground rounded-xl shadow-accent-glow flex-shrink-0"><Send size={18} /></Button>
               </div>
             </div>
           </motion.aside>
@@ -839,20 +841,20 @@ function App() {
       
       {cloningFileId && (
         <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in">
-          <div className="max-w-md w-full glass-panel p-8 border-slate-800 shadow-2xl space-y-6">
+          <div className="max-w-md w-full glass-panel p-8 border-border shadow-2xl space-y-6">
             <div className="space-y-2 text-center">
               <h2 className="text-xl font-bold italic tracking-tighter uppercase">Synchronize Record</h2>
-              <p className="text-slate-400 text-xs">Select a destination subfolder to archive this intelligence.</p>
+              <p className="text-muted-foreground text-xs">Select a destination subfolder to archive this intelligence.</p>
             </div>
             <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 scrollbar-hide">
               {folders.filter(f => f.parent_id).map(folder => (
-                <button key={folder.id} onClick={() => cloneFileToFolder(cloningFileId, folder.id)} className="w-full text-left p-4 rounded-xl bg-slate-900/50 border border-slate-800 hover:border-electric-blue hover:bg-electric-blue/5 transition-all group">
-                  <p className="text-[9px] uppercase font-bold text-slate-500 group-hover:text-electric-blue/60">{folders.find(p => p.id === folder.parent_id)?.name}</p>
-                  <p className="text-sm font-bold text-slate-100">{folder.name}</p>
+                <button key={folder.id} onClick={() => cloneFileToFolder(cloningFileId, folder.id)} className="w-full text-left p-4 rounded-xl bg-card/50 border border-border hover:border-primary hover:bg-primary/5 transition-all group">
+                  <p className="text-[9px] uppercase font-bold text-muted-foreground/60 group-hover:text-primary/60">{folders.find(p => p.id === folder.parent_id)?.name}</p>
+                  <p className="text-sm font-bold text-foreground">{folder.name}</p>
                 </button>
               ))}
             </div>
-            <Button variant="outline" className="w-full text-xs font-bold border-slate-800" onClick={() => setCloningFileId(null)}>Cancel Operation</Button>
+            <Button variant="outline" className="w-full text-xs font-bold border-border" onClick={() => setCloningFileId(null)}>Cancel Operation</Button>
           </div>
         </div>
       )}
@@ -860,27 +862,27 @@ function App() {
       <ProgramGeneratorModal isOpen={isGeneratorModalOpen} onClose={() => setIsGeneratorModalOpen(false)} onGenerate={handleGenerateRecord} isGenerating={isGeneratingRecord} />
 
       {contextMenu.isOpen && contextMenu.item && (
-        <div className="fixed z-[150] w-48 bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-xl shadow-2xl py-2 flex flex-col animate-in duration-200" style={{ top: Math.min(contextMenu.y, window.innerHeight - 100), left: Math.min(contextMenu.x, window.innerWidth - 200) }} onClick={(e) => e.stopPropagation()}>
-          <button className="text-left px-4 py-2 text-sm text-slate-300 hover:bg-electric-blue/10 hover:text-electric-blue flex items-center gap-2" onClick={() => setContextMenu({ isOpen: false, x: 0, y: 0, item: null })}>
-             <FileText size={14} /> Action Required
+        <div className="fixed z-[150] w-48 bg-background/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl py-2 flex flex-col animate-in duration-200" style={{ top: Math.min(contextMenu.y, window.innerHeight - 100), left: Math.min(contextMenu.x, window.innerWidth - 200) }} onClick={(e) => e.stopPropagation()}>
+          <button className="text-left px-4 py-2 text-sm text-foreground hover:bg-primary/10 hover:text-primary flex items-center gap-2" onClick={() => setContextMenu({ isOpen: false, x: 0, y: 0, item: null })}>
+             <FileText size={14} className="text-muted-foreground/50" /> Action Required
           </button>
         </div>
       )}
 
       <Dialog open={modalConfig.isOpen} onOpenChange={(isOpen) => !isOpen && setModalConfig(prev => ({ ...prev, isOpen: false }))}>
-        <DialogContent className="glass-panel border-slate-700 bg-slate-950/90 text-slate-100 sm:max-w-md pointer-events-auto">
+        <DialogContent className="glass-panel border-border bg-background/90 text-foreground sm:max-w-md pointer-events-auto">
           <DialogHeader>
             <DialogTitle className="text-xl tracking-tight">{modalConfig.title}</DialogTitle>
-            {modalConfig.description && <DialogDescription className="text-slate-400 mt-2 text-sm">{modalConfig.description}</DialogDescription>}
+            {modalConfig.description && <DialogDescription className="text-muted-foreground mt-2 text-sm">{modalConfig.description}</DialogDescription>}
           </DialogHeader>
           {modalConfig.type === 'prompt' && (
             <div className="py-4">
-              <input type="text" autoFocus value={modalConfig.inputValue} onChange={(e) => setModalConfig(prev => ({ ...prev, inputValue: e.target.value }))} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 focus:ring-1 focus:ring-electric-blue outline-none" />
+              <input type="text" autoFocus value={modalConfig.inputValue} onChange={(e) => setModalConfig(prev => ({ ...prev, inputValue: e.target.value }))} className="w-full bg-muted border border-border rounded-lg p-3 text-sm text-foreground focus:ring-1 focus:ring-primary outline-none" />
             </div>
           )}
           <DialogFooter className="gap-2 mt-4">
             <Button variant="outline" onClick={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}>Cancel</Button>
-            <Button onClick={() => { modalConfig.onConfirm(modalConfig.inputValue); setModalConfig(prev => ({ ...prev, isOpen: false })); }} className="bg-electric-blue text-white shadow-blue-glow border-none">Confirm</Button>
+            <Button onClick={() => { modalConfig.onConfirm(modalConfig.inputValue); setModalConfig(prev => ({ ...prev, isOpen: false })); }} className="bg-primary text-primary-foreground shadow-accent-glow border-none">Confirm</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

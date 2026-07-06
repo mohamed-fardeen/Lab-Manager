@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Settings, 
-  Trash2, 
-  RefreshCcw, 
-  ShieldAlert, 
-  BookOpen, 
-  Plus, 
-  FolderPlus, 
+import {
+  Settings,
+  Trash2,
+  RefreshCcw,
+  ShieldAlert,
+  BookOpen,
+  Plus,
+  FolderPlus,
   AlertTriangle,
   Mail,
   Lock,
@@ -16,11 +16,16 @@ import {
   Upload,
   CheckCircle2,
   ChevronRight,
-  Info
+  Info,
+  Sparkles,
+  Code2
 } from 'lucide-react';
 import { Button } from "../ui/button";
 import { api } from '../../lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from '../../context/ThemeContext';
+import { useBackground, BACKGROUND_OPTIONS, BackgroundMode } from '../../context/BackgroundContext';
+import BackgroundPreview from '../background/BackgroundPreview';
 
 interface Subject {
   name: string;
@@ -33,6 +38,9 @@ const AdminSettings = () => {
   const [loading, setLoading] = useState(true);
   const [resetConfirm, setResetConfirm] = useState('');
   const [isResetting, setIsResetting] = useState(false);
+
+  const { theme, setTheme } = useTheme();
+  const { mode: bgMode, setMode: setBgMode } = useBackground();
   
   // Settings States
   const [restrictEmail, setRestrictEmail] = useState(true);
@@ -141,8 +149,8 @@ const AdminSettings = () => {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-2 border-electric-blue/10 border-t-electric-blue rounded-full animate-spin"></div>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Accessing System Protocols...</p>
+          <div className="w-10 h-10 border-2 border-primary/10 border-t-primary rounded-full animate-spin"></div>
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Accessing System Protocols...</p>
         </div>
       </div>
     );
@@ -152,10 +160,12 @@ const AdminSettings = () => {
     <div className="space-y-12 animate-in fade-in duration-500 pb-20">
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-black italic tracking-tighter uppercase font-orbitron text-white">
+        <span className="eyebrow">№ E1 — System</span>
+        <h2 className="mt-3 text-4xl md:text-5xl font-display font-medium tracking-tight text-foreground">
           System Control Center
         </h2>
-        <p className="text-slate-500 text-sm mt-1">High-level administrative overrides and infrastructure configuration.</p>
+        <div className="ink-rule mt-4 mb-3" />
+        <p className="text-muted-foreground text-sm mt-3">High-level administrative overrides and infrastructure configuration.</p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
@@ -163,45 +173,45 @@ const AdminSettings = () => {
         {/* Section 1: Academic Structure */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white italic flex items-center gap-2">
-              <BookOpen size={16} className="text-electric-blue" />
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-foreground italic flex items-center gap-2">
+              <BookOpen size={16} className="text-primary" />
               Academic Hierarchy
             </h3>
-            <Button onClick={handleCreateSubject} className="h-8 px-4 bg-white text-slate-950 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-electric-blue hover:text-white transition-all">
+            <Button onClick={handleCreateSubject} className="h-8 px-4 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-foreground hover:text-background transition-all shadow-accent-glow">
               <Plus size={14} className="mr-1" /> New Subject
             </Button>
           </div>
           
           <div className="space-y-4">
             {subjects.map((subject) => (
-              <div key={subject.name} className="glass-panel border-slate-800 overflow-hidden bg-slate-900/10">
-                <div className="p-4 bg-slate-950/40 border-b border-slate-800 flex items-center justify-between">
+              <div key={subject.name} className="glass-panel border-border overflow-hidden app-surface">
+                <div className="p-4 app-bg border-b border-border flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-electric-blue/10 flex items-center justify-center text-electric-blue">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                       <ChevronRight size={16} />
                     </div>
-                    <span className="text-sm font-black uppercase tracking-widest text-white">{subject.name}</span>
+                    <span className="text-sm font-black uppercase tracking-widest text-foreground">{subject.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleCreateExperiment(subject.name)} className="h-7 px-2 text-[8px] font-bold uppercase tracking-widest text-slate-400 hover:text-white">
+                    <Button variant="ghost" size="sm" onClick={() => handleCreateExperiment(subject.name)} className="h-7 px-2 text-[8px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground">
                       <FolderPlus size={14} className="mr-1" /> Add Exp
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDeleteFolder(subject.name, subject.folderIds)} className="h-7 w-7 p-0 text-slate-600 hover:text-rose-500">
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteFolder(subject.name, subject.folderIds)} className="h-7 w-7 p-0 text-muted-foreground hover:text-primary">
                       <Trash2 size={14} />
                     </Button>
                   </div>
                 </div>
                 <div className="p-2 space-y-1">
                   {subject.experiments.map((exp) => (
-                    <div key={exp.name} className="flex items-center justify-between p-2 px-4 hover:bg-slate-800/20 rounded-lg group">
-                      <span className="text-xs text-slate-400 group-hover:text-slate-200 transition-colors">{exp.name}</span>
-                      <button onClick={() => handleDeleteFolder(exp.name, exp.folderIds)} className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-rose-500 transition-all">
+                    <div key={exp.name} className="flex items-center justify-between p-2 px-4 hover:app-surface-raised rounded-lg group">
+                      <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">{exp.name}</span>
+                      <button onClick={() => handleDeleteFolder(exp.name, exp.folderIds)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-all">
                         <Trash2 size={12} />
                       </button>
                     </div>
                   ))}
                   {subject.experiments.length === 0 && (
-                    <p className="p-4 text-[10px] text-slate-600 italic text-center uppercase tracking-widest">No experiments coded</p>
+                    <p className="p-4 text-[10px] text-muted-foreground italic text-center uppercase tracking-widest">No experiments coded</p>
                   )}
                 </div>
               </div>
@@ -211,42 +221,148 @@ const AdminSettings = () => {
 
         {/* Right Column */}
         <div className="space-y-8">
-          
+
+          {/* Section 1.5: Interface Protocol (Theme) */}
+          <div className="glass-panel p-8 border-border space-y-6 app-surface">
+            <div className="flex items-center gap-2 text-foreground">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Sparkles size={18} className="text-primary" />
+              </div>
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] italic">Interface Protocol</h3>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground">Select your preferred visual interface protocol for the administrative workspace.</p>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Modern Dark */}
+                <button
+                  onClick={() => setTheme('dark')}
+                  className={`p-4 rounded-md border transition-all flex flex-col items-center gap-3 ${theme === 'dark' ? 'border-primary bg-primary/8 shadow-sm' : 'border-border bg-background hover:bg-surface-overlay'}`}
+                >
+                  <div className="relative w-full aspect-video bg-[#0F0F0F] rounded border border-[#2E2E2E] overflow-hidden">
+                    <div className="absolute -top-1 left-2 w-12 h-3 bg-[#00E5B0]/30 clip-folder-tab" style={{ clipPath: 'polygon(0% 0%, 65% 0%, 75% 35%, 100% 35%, 100% 100%, 0% 100%)' }} />
+                    <div className="absolute top-3 left-3 right-3 bottom-3 bg-[#1A1A1A] border border-[#2E2E2E] rounded p-2 flex flex-col justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-sm bg-[#00E5B0]/30 border border-[#00E5B0]/40" />
+                        <div className="flex-1 h-1 bg-[#2E2E2E] rounded" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="h-1 w-3/4 bg-[#2E2E2E] rounded" />
+                        <div className="h-0.5 w-1/2 bg-[#00E5B0]/40 rounded" />
+                      </div>
+                    </div>
+                    <div className="absolute bottom-1.5 left-3 right-3 h-0.5 bg-[#00E5B0] rounded-full shadow-[0_0_4px_rgba(0,229,176,0.6)]" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-widest">Variant 01</span>
+                    <span className="font-display text-sm font-medium text-foreground">Modern Dark</span>
+                  </div>
+                </button>
+
+                {/* Field Journal */}
+                <button
+                  onClick={() => setTheme('light')}
+                  className={`p-4 rounded-md border transition-all flex flex-col items-center gap-3 ${theme === 'light' ? 'border-primary bg-primary/8 shadow-sm' : 'border-border bg-background hover:bg-surface-overlay'}`}
+                >
+                  <div className="relative w-full aspect-video bg-[#F5F0E1] rounded border border-[#E2D9C4] overflow-hidden">
+                    <div className="absolute top-3 left-3 right-3 bottom-3 bg-[#FAF6EC] border border-[#E2D9C4] rounded-sm p-2 flex flex-col justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-sm bg-[#1E40AF]/15 border border-[#1E40AF]/40" />
+                        <div className="flex-1 h-0.5 bg-[#E2D9C4] rounded" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="h-1 w-3/4 bg-[#1A1714]/30 rounded" />
+                        <div className="h-px w-full bg-gradient-to-r from-transparent via-[#C99A3B] to-transparent" />
+                        <div className="h-0.5 w-1/2 bg-[#1A1714]/15 rounded" />
+                      </div>
+                    </div>
+                    <div className="absolute bottom-1.5 left-3 right-3 h-0.5 bg-[#1E40AF] rounded-full shadow-[0_0_4px_rgba(30,64,175,0.5)]" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-widest">Variant 02</span>
+                    <span className="font-display text-sm font-medium text-foreground">Field Journal</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 1.6: Landing Background Animation */}
+          <div className="glass-panel p-8 border-border space-y-6 app-surface">
+            <div className="flex items-center gap-2 text-foreground">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Code2 size={18} className="text-primary" />
+              </div>
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] italic">Landing Background</h3>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Choose the ambient background animation shown on the landing page. Each is grounded in a real concept from programming — none are abstract "tech" decoration.
+              </p>
+
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {BACKGROUND_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setBgMode(opt.id as BackgroundMode)}
+                    className={`group relative p-3 rounded-md border transition-all flex flex-col gap-2 text-left ${
+                      bgMode === opt.id
+                        ? 'border-primary bg-primary/8 shadow-sm'
+                        : 'border-border bg-background hover:bg-surface-overlay'
+                    }`}
+                  >
+                    <BackgroundPreview mode={opt.id as BackgroundMode} active={bgMode === opt.id} />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-display text-xs font-medium text-foreground">{opt.name}</span>
+                      <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-widest">{opt.catalogue}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{opt.description}</p>
+                    {bgMode === opt.id && (
+                      <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary shadow-accent-glow" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {/* Section 2: System Toggles */}
-          <div className="glass-panel p-8 border-slate-800 space-y-6 bg-slate-900/10">
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white italic flex items-center gap-2">
-              <Settings size={16} className="text-emerald-500" />
+          <div className="glass-panel p-8 border-border space-y-6 app-surface">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-foreground italic flex items-center gap-2">
+              <Settings size={16} className="text-primary" />
               Platform Protocols
             </h3>
             
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-slate-950/40 rounded-xl border border-slate-800/50">
+              <div className="flex items-center justify-between p-4 app-bg rounded-xl border border-border">
                 <div className="space-y-1">
-                  <div className="text-xs font-bold text-white flex items-center gap-2">
-                    <Mail size={14} className="text-slate-500" />
+                  <div className="text-xs font-bold text-foreground flex items-center gap-2">
+                    <Mail size={14} className="text-muted-foreground" />
                     Restrict Email Domain
                   </div>
-                  <p className="text-[10px] text-slate-600 uppercase font-bold tracking-widest">Only @college.edu allowed</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Only @college.edu allowed</p>
                 </div>
                 <button 
                   onClick={() => setRestrictEmail(!restrictEmail)}
-                  className={`w-10 h-5 rounded-full transition-all relative ${restrictEmail ? 'bg-emerald-500' : 'bg-slate-800'}`}
+                  className={`w-10 h-5 rounded-full transition-all relative ${restrictEmail ? 'bg-primary' : 'app-surface-raised'}`}
                 >
                   <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${restrictEmail ? 'left-6' : 'left-1'}`} />
                 </button>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-slate-950/40 rounded-xl border border-slate-800/50">
+              <div className="flex items-center justify-between p-4 app-bg rounded-xl border border-border">
                 <div className="space-y-1">
-                  <div className="text-xs font-bold text-white flex items-center gap-2">
-                    <Lock size={14} className="text-slate-500" />
+                  <div className="text-xs font-bold text-foreground flex items-center gap-2">
+                    <Lock size={14} className="text-muted-foreground" />
                     Open Registration
                   </div>
-                  <p className="text-[10px] text-slate-600 uppercase font-bold tracking-widest">Allow new researchers to join</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Allow new researchers to join</p>
                 </div>
                 <button 
                   onClick={() => setAllowRegistration(!allowRegistration)}
-                  className={`w-10 h-5 rounded-full transition-all relative ${allowRegistration ? 'bg-emerald-500' : 'bg-slate-800'}`}
+                  className={`w-10 h-5 rounded-full transition-all relative ${allowRegistration ? 'bg-primary' : 'app-surface-raised'}`}
                 >
                   <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${allowRegistration ? 'left-6' : 'left-1'}`} />
                 </button>
@@ -255,10 +371,10 @@ const AdminSettings = () => {
           </div>
 
           {/* Section 3: Quotas */}
-          <div className="glass-panel p-8 border-slate-800 space-y-6">
+          <div className="glass-panel p-8 border-border space-y-6">
              <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-electric-blue">
+                  <div className="flex items-center gap-2 text-primary">
                     <Cpu size={16} />
                     <span className="text-[10px] font-black uppercase tracking-widest">AI Quota</span>
                   </div>
@@ -268,17 +384,17 @@ const AdminSettings = () => {
                       min="10" max="200" step="10"
                       value={aiLimit}
                       onChange={(e) => setAiLimit(parseInt(e.target.value))}
-                      className="w-full h-1 bg-slate-900 rounded-full appearance-none cursor-pointer accent-electric-blue"
+                      className="w-full h-1 app-surface rounded-full appearance-none cursor-pointer accent-primary"
                     />
-                    <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                       <span>Limit</span>
-                      <span className="text-white">{aiLimit} req/day</span>
+                      <span className="text-foreground">{aiLimit} req/day</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-amber-500">
+                  <div className="flex items-center gap-2 text-primary">
                     <Database size={16} />
                     <span className="text-[10px] font-black uppercase tracking-widest">Payload Limit</span>
                   </div>
@@ -288,11 +404,11 @@ const AdminSettings = () => {
                       min="5" max="500" step="5"
                       value={maxUploadSize}
                       onChange={(e) => setMaxUploadSize(parseInt(e.target.value))}
-                      className="w-full h-1 bg-slate-900 rounded-full appearance-none cursor-pointer accent-amber-500"
+                      className="w-full h-1 app-surface rounded-full appearance-none cursor-pointer accent-primary"
                     />
-                    <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                       <span>Max</span>
-                      <span className="text-white">{maxUploadSize} MB</span>
+                      <span className="text-foreground">{maxUploadSize} MB</span>
                     </div>
                   </div>
                 </div>
@@ -300,41 +416,41 @@ const AdminSettings = () => {
           </div>
 
           {/* Section 4: System Reset (DANGER ZONE) */}
-          <div className="glass-panel p-8 border-rose-500/20 bg-rose-500/5 space-y-6">
-            <div className="flex items-center gap-2 text-rose-500">
+          <div className="glass-panel p-8 border-destructive/20 bg-destructive/5 space-y-6">
+            <div className="flex items-center gap-2 text-destructive">
               <ShieldAlert size={18} />
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] italic">Catastrophic Reset Protocol</h3>
+              <h3 className="font-display text-sm font-medium uppercase tracking-[0.2em]">Catastrophic Reset Protocol</h3>
             </div>
-            
-            <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+
+            <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
               Initiating a reset will permanently purge laboratory intelligence. This action cannot be intercepted once deployed.
             </p>
 
             <div className="space-y-4">
                <div className="relative group">
-                  <AlertTriangle size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-rose-500 transition-colors" />
-                  <input 
-                    type="text" 
-                    placeholder="TYPE: RESET SYSTEM" 
+                  <AlertTriangle size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-destructive transition-colors" />
+                  <input
+                    type="text"
+                    placeholder="Type: RESET SYSTEM"
                     value={resetConfirm}
                     onChange={(e) => setResetConfirm(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800/50 rounded-xl py-3 pl-9 pr-4 text-[10px] font-black uppercase tracking-[0.2em] text-white focus:outline-none focus:border-rose-500/50 transition-all placeholder:text-slate-800"
+                    className="w-full app-bg border border-border rounded-xl py-3 pl-9 pr-4 font-mono text-[10px] uppercase tracking-[0.2em] text-foreground focus:outline-none focus:border-destructive/50 transition-all placeholder:text-muted-foreground/40"
                   />
                </div>
 
                <div className="grid grid-cols-2 gap-3">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => handleSystemReset('files')}
                     disabled={isResetting || resetConfirm !== 'RESET SYSTEM'}
-                    className="h-10 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900 text-[9px] font-black uppercase tracking-widest rounded-xl"
+                    className="h-10 border-border text-muted-foreground hover:text-foreground hover:bg-surface-overlay font-mono text-[9px] uppercase tracking-widest rounded-xl"
                   >
                     Purge Files
                   </Button>
-                  <Button 
+                  <Button
                     onClick={() => handleSystemReset('full')}
                     disabled={isResetting || resetConfirm !== 'RESET SYSTEM'}
-                    className="h-10 bg-rose-600 hover:bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-rose-glow border-none"
+                    className="h-10 bg-destructive hover:bg-destructive/80 text-destructive-foreground font-mono text-[9px] uppercase tracking-widest rounded-xl border-none"
                   >
                     Nuclear Reset
                   </Button>

@@ -23,25 +23,31 @@ exports.createFolder = async (req, res) => {
     if (parent_id) {
       const { data: parentFolder, error: parentError } = await supabaseAdmin
         .from('folders')
-        .select('id')
+        .select('id, type')
         .eq('id', parent_id)
         .eq('user_id', req.user.id)
         .single();
 
       if (parentError || !parentFolder) {
-        return res.status(403).json({ 
-          success: false, 
-          message: 'Invalid parent folder: Access denied or folder does not exist' 
+        return res.status(403).json({
+          success: false,
+          message: 'Invalid parent folder: Access denied or folder does not exist'
         });
       }
     }
-    
+
+    // `type` is NOT NULL on the folders table. Root folders are 'subject';
+    // anything nested under a parent is 'category'. The DB CHECK constraint
+    // only allows these two values.
+    const folderType = parent_id ? 'category' : 'subject';
+
     const { data, error } = await supabaseAdmin
       .from('folders')
-      .insert([{ 
-        name, 
+      .insert([{
+        name,
         user_id: req.user.id,
-        parent_id: parent_id || null 
+        parent_id: parent_id || null,
+        type: folderType,
       }])
       .select()
       .single();

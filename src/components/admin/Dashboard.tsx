@@ -101,8 +101,8 @@ const AdminDashboard = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <div className="w-12 h-12 border-4 border-electric-blue/20 border-t-electric-blue rounded-full animate-spin"></div>
-        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs animate-pulse">Syncing System Intelligence...</p>
+        <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+        <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs animate-pulse">Syncing System Intelligence...</p>
       </div>
     );
   }
@@ -111,52 +111,52 @@ const AdminDashboard = () => {
     <div className="space-y-8 animate-in fade-in duration-700">
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-black italic tracking-tighter uppercase font-orbitron text-white">
+        <h2 className="text-3xl font-black italic tracking-tighter uppercase font-orbitron text-foreground">
           System Overview
         </h2>
-        <p className="text-slate-500 text-sm mt-1">Real-time status of lab infrastructure and researcher activity.</p>
+        <p className="text-muted-foreground text-sm mt-1">Real-time status of lab infrastructure and researcher activity.</p>
       </div>
 
       {/* Top Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {[
-          { label: 'Total Users', value: stats?.totalUsers, icon: Users, color: 'text-blue-400' },
-          { label: 'Active Today', value: stats?.activeUsersToday, icon: Activity, color: 'text-emerald-400' },
-          { label: 'Total Files', value: stats?.totalFiles, icon: Files, color: 'text-purple-400' },
-          { label: 'AI Requests', value: stats?.aiRequestsToday, icon: Zap, color: 'text-amber-400' },
-          { label: 'Storage Used', value: formatStorage(stats?.storageUsed || 0), icon: HardDrive, color: 'text-rose-400' },
+          { label: 'Total Users', value: stats?.totalUsers, icon: Users, color: 'text-primary' },
+          { label: 'Active Today', value: stats?.activeUsersToday, icon: Activity, color: 'text-primary' },
+          { label: 'Total Files', value: stats?.totalFiles, icon: Files, color: 'text-primary' },
+          { label: 'AI Requests', value: stats?.aiRequestsToday, icon: Zap, color: 'text-primary' },
+          { label: 'Storage Used', value: formatStorage(stats?.storageUsed || 0), icon: HardDrive, color: 'text-primary' },
         ].map((stat, i) => (
-          <div key={i} className="glass-panel p-5 border-slate-800 hover-glow group transition-all">
+          <div key={i} className="glass-panel p-5 hover-glow group transition-all">
             <div className="flex items-center justify-between mb-3">
-              <div className={`p-2 rounded-lg bg-slate-900/50 ${stat.color}`}>
+              <div className={`p-2 rounded-lg app-surface-overlay ${stat.color}`}>
                 <stat.icon size={18} />
               </div>
-              <ArrowUpRight size={14} className="text-slate-700 group-hover:text-slate-400 transition-colors" />
+              <ArrowUpRight size={14} className="text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
-            <div className="text-2xl font-black text-white tracking-tight">{stat.value}</div>
-            <div className="text-[10px] text-slate-500 font-bold uppercase mt-1 tracking-widest">{stat.label}</div>
+            <div className="text-2xl font-black text-foreground tracking-tight">{stat.value}</div>
+            <div className="text-[10px] text-muted-foreground font-bold uppercase mt-1 tracking-widest">{stat.label}</div>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Activity Graph (Simple CSS Implementation) */}
-        <div className="lg:col-span-2 glass-panel p-6 border-slate-800 space-y-6">
+        <div className="lg:col-span-2 glass-panel p-6 space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-white flex items-center gap-2">
-              <TrendingUp size={16} className="text-electric-blue" />
+            <h3 className="text-sm font-bold uppercase tracking-widest text-foreground flex items-center gap-2">
+              <TrendingUp size={16} className="text-primary" />
               Activity Metrics (7 Days)
             </h3>
             <div className="flex items-center gap-4 text-[10px] font-bold uppercase">
-              <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-electric-blue rounded-full"></div> Uploads</div>
-              <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-amber-500 rounded-full"></div> AI Usage</div>
+              <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-primary rounded-full"></div> Uploads</div>
+              <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-muted-foreground rounded-full"></div> AI Usage</div>
             </div>
           </div>
           
-          <div className="h-64 w-full flex items-end justify-between gap-2 px-2 pb-8 border-b border-slate-800/50 relative">
+          <div className="h-64 w-full flex items-end justify-between gap-2 px-2 pb-8 border-b border-border relative">
             {/* Grid lines */}
             <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-5">
-              {[0, 1, 2, 3].map(i => <div key={i} className="w-full h-px bg-white"></div>)}
+              {[0, 1, 2, 3].map(i => <div key={i} className="w-full h-px bg-border"></div>)}
             </div>
             
             {usage.map((day, i) => {
@@ -169,19 +169,19 @@ const AdminDashboard = () => {
                   <div className="w-full flex items-end justify-center gap-1 h-full min-h-[4px]">
                     <div 
                       style={{ height: `${Math.max(uploadHeight, 5)}%` }} 
-                      className="w-3 bg-electric-blue/80 rounded-t-sm group-hover:bg-electric-blue transition-all"
+                      className="w-3 bg-primary/80 rounded-t-sm group-hover:bg-primary transition-all shadow-accent-glow"
                     ></div>
                     <div 
                       style={{ height: `${Math.max(aiHeight, 5)}%` }} 
-                      className="w-3 bg-amber-500/80 rounded-t-sm group-hover:bg-amber-500 transition-all"
+                      className="w-3 bg-muted rounded-t-sm group-hover:bg-muted-foreground transition-all"
                     ></div>
                   </div>
-                  <span className="absolute -bottom-6 text-[9px] font-bold text-slate-500 group-hover:text-slate-300 uppercase">{day.date}</span>
+                  <span className="absolute -bottom-6 text-[9px] font-bold text-muted-foreground group-hover:text-foreground uppercase">{day.date}</span>
                   
                   {/* Tooltip */}
-                  <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 border border-slate-800 p-2 rounded-lg text-[8px] z-10 pointer-events-none whitespace-nowrap shadow-2xl">
-                    <div className="text-electric-blue">Uploads: {day.uploads}</div>
-                    <div className="text-amber-500">AI: {day.aiUsage}</div>
+                  <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-opacity app-surface border border-border p-2 rounded-lg text-[8px] z-10 pointer-events-none whitespace-nowrap shadow-2xl">
+                    <div className="text-primary">Uploads: {day.uploads}</div>
+                    <div className="text-muted-foreground">AI: {day.aiUsage}</div>
                   </div>
                 </div>
               );
@@ -190,41 +190,41 @@ const AdminDashboard = () => {
         </div>
 
         {/* System Status */}
-        <div className="glass-panel p-6 border-slate-800 space-y-6">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-white flex items-center gap-2">
-            <ShieldCheck size={16} className="text-emerald-400" />
+        <div className="glass-panel p-6 space-y-6">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-foreground flex items-center gap-2">
+            <ShieldCheck size={16} className="text-primary" />
             System Health
           </h3>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-xl border border-slate-800/50">
+            <div className="flex items-center justify-between p-3 app-surface rounded-xl border border-border">
               <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
-                <span className="text-xs font-medium text-slate-300">Core Services</span>
+                <div className="w-2 h-2 bg-primary rounded-full animate-pulse shadow-accent-glow"></div>
+                <span className="text-xs font-medium text-foreground">Core Services</span>
               </div>
-              <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Nominal</span>
+              <span className="text-[10px] font-black text-primary uppercase tracking-widest">Nominal</span>
             </div>
             
-            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-xl border border-slate-800/50">
+            <div className="flex items-center justify-between p-3 app-surface rounded-xl border border-border">
               <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
-                <span className="text-xs font-medium text-slate-300">Intelligence Engine</span>
+                <div className="w-2 h-2 bg-primary rounded-full animate-pulse shadow-accent-glow"></div>
+                <span className="text-xs font-medium text-foreground">Intelligence Engine</span>
               </div>
-              <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Active</span>
+              <span className="text-[10px] font-black text-primary uppercase tracking-widest">Active</span>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-xl border border-slate-800/50">
+            <div className="flex items-center justify-between p-3 app-surface rounded-xl border border-border">
               <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
-                <span className="text-xs font-medium text-slate-300">Database Nodes</span>
+                <div className="w-2 h-2 bg-primary rounded-full animate-pulse shadow-accent-glow"></div>
+                <span className="text-xs font-medium text-foreground">Database Nodes</span>
               </div>
-              <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Healthy</span>
+              <span className="text-[10px] font-black text-primary uppercase tracking-widest">Healthy</span>
             </div>
 
-            <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl flex gap-3 items-start mt-6">
-               <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+            <div className="p-4 app-surface border border-border rounded-xl flex gap-3 items-start mt-6">
+               <ShieldCheck size={16} className="text-primary shrink-0 mt-0.5" />
                <div>
-                  <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Storage Advisory</p>
-                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Storage utilization is at 82%. Consider optimizing large intelligence assets.</p>
+                  <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Storage Advisory</p>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">Storage utilization is at 82%. Consider optimizing large intelligence assets.</p>
                </div>
             </div>
           </div>
@@ -232,44 +232,44 @@ const AdminDashboard = () => {
       </div>
 
       {/* Recent Activity */}
-      <div className="glass-panel border-slate-800 overflow-hidden">
-        <div className="p-4 border-b border-slate-800 bg-slate-900/30 flex items-center justify-between">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-white flex items-center gap-2 px-2">
-            <Clock size={16} className="text-slate-400" />
+      <div className="glass-panel border-border overflow-hidden">
+        <div className="p-4 border-b border-border app-table-header flex items-center justify-between">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-foreground flex items-center gap-2 px-2">
+            <Clock size={16} className="text-muted-foreground" />
             Live Activity Feed
           </h3>
-          <button onClick={() => window.location.reload()} className="text-[10px] font-bold uppercase tracking-widest text-electric-blue hover:text-white transition-colors px-2">
+          <button onClick={() => window.location.reload()} className="text-[10px] font-bold uppercase tracking-widest text-primary hover:text-foreground transition-colors px-2">
             Refresh Stream
           </button>
         </div>
         
-        <div className="divide-y divide-slate-800/50">
+        <div className="divide-y divide-border">
           {activities.length > 0 ? activities.map((item, i) => (
-            <div key={i} className="p-4 flex items-center justify-between hover:bg-slate-900/30 transition-all group">
+            <div key={i} className="p-4 flex items-center justify-between app-table-row group">
               <div className="flex items-center gap-4">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center border border-slate-800 transition-colors ${
-                  item.type === 'file' ? 'bg-blue-500/5 text-blue-400' : 
-                  item.type === 'ai' ? 'bg-amber-500/5 text-amber-400' : 
-                  'bg-purple-500/5 text-purple-400'
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center border border-border transition-colors ${
+                  item.type === 'file' ? 'bg-primary/5 text-primary' : 
+                  item.type === 'ai' ? 'bg-primary/10 text-primary' : 
+                  'bg-primary/5 text-muted-foreground'
                 }`}>
                   {item.type === 'file' ? <Files size={14} /> : item.type === 'ai' ? <Zap size={14} /> : <Activity size={14} />}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white">{item.user}</span>
-                    <span className="text-[10px] text-slate-500 font-medium">{item.action}</span>
+                    <span className="text-xs font-bold text-foreground">{item.user}</span>
+                    <span className="text-[10px] text-muted-foreground font-medium">{item.action}</span>
                   </div>
-                  <div className="text-[9px] text-slate-600 font-bold uppercase tracking-tighter mt-0.5">
+                  <div className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter mt-0.5">
                     {new Date(item.timestamp).toLocaleString()}
                   </div>
                 </div>
               </div>
               <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                <ArrowRight size={14} className="text-slate-700" />
+                <ArrowRight size={14} className="text-muted-foreground" />
               </div>
             </div>
           )) : (
-            <div className="p-12 text-center text-slate-600 text-xs italic">
+            <div className="p-12 text-center text-muted-foreground text-xs italic">
               No recent activity detected in the system sequencing.
             </div>
           )}

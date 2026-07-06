@@ -51,6 +51,7 @@ router.delete('/user/:id', adminController.deleteUser);
 
 // Data & Academic Management
 router.get('/files', adminController.getAllFilesAdmin);
+router.post('/file', adminController.createGlobalFile);
 router.get('/folders', adminController.getFolders);
 router.post('/record/status', adminController.updateFileStatus);
 router.delete('/file/:id', adminController.deleteFileAdmin);

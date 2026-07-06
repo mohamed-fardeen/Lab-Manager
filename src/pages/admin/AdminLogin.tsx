@@ -62,9 +62,9 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ isAdmin, onAdminLogin }) => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-950 flex items-center justify-center px-4 relative overflow-hidden">
+    <div className="min-h-screen w-full bg-background flex items-center justify-center px-4 relative overflow-hidden">
       {/* Background grid */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
 
       {/* Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-red-950/20 rounded-full blur-3xl pointer-events-none" />
@@ -76,16 +76,16 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ isAdmin, onAdminLogin }) => {
         className="relative w-full max-w-md"
       >
         {/* Card */}
-        <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl">
+        <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl p-8 shadow-2xl">
           {/* Header */}
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(239,68,68,0.15)]">
               <Shield size={32} className="text-red-400" />
             </div>
-            <h1 className="text-2xl font-black italic tracking-tighter uppercase font-orbitron text-white">
+            <h1 className="text-2xl font-black italic tracking-tighter uppercase font-orbitron text-foreground">
               Admin Portal
             </h1>
-            <p className="text-slate-500 text-xs mt-2 text-center">
+            <p className="text-muted-foreground text-xs mt-2 text-center">
               Restricted access. Authorised personnel only.
             </p>
             <div className="flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20">
@@ -109,7 +109,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ isAdmin, onAdminLogin }) => {
           {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-1">
                 Admin Email
               </label>
               <input
@@ -119,12 +119,12 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ isAdmin, onAdminLogin }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@domain.com"
                 autoComplete="email"
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-slate-100 focus:ring-1 focus:ring-red-500/50 focus:border-red-500/50 outline-none transition-all placeholder:text-slate-700"
+                className="w-full bg-background border border-border rounded-2xl p-4 text-sm text-foreground focus:ring-1 focus:ring-red-500/50 focus:border-red-500/50 outline-none transition-all placeholder:text-muted-foreground/30"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-1">
                 Password
               </label>
               <div className="relative">
@@ -135,12 +135,12 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ isAdmin, onAdminLogin }) => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   autoComplete="current-password"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 pr-12 text-sm text-slate-100 focus:ring-1 focus:ring-red-500/50 focus:border-red-500/50 outline-none transition-all placeholder:text-slate-700"
+                  className="w-full bg-background border border-border rounded-2xl p-4 pr-12 text-sm text-foreground focus:ring-1 focus:ring-red-500/50 focus:border-red-500/50 outline-none transition-all placeholder:text-muted-foreground/30"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-300 transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -150,7 +150,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ isAdmin, onAdminLogin }) => {
             <button
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full h-14 mt-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black uppercase tracking-widest text-[11px] rounded-2xl transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)] hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] flex items-center justify-center gap-3"
+              className="w-full h-14 mt-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-foreground font-black uppercase tracking-widest text-[11px] rounded-2xl transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)] hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] flex items-center justify-center gap-3"
             >
               {loading ? (
                 <>
@@ -167,7 +167,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ isAdmin, onAdminLogin }) => {
           </form>
 
           {/* Footer */}
-          <p className="text-center text-[9px] text-slate-700 font-mono uppercase tracking-widest mt-8">
+          <p className="text-center text-[9px] text-muted-foreground/50 font-mono uppercase tracking-widest mt-8">
             Unauthorised access is prohibited and monitored.
           </p>
         </div>

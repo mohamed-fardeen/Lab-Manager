@@ -1,23 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from './ui/dialog';
 import { Button } from './ui/button';
-import { 
-  FileText, 
-  X, 
-  Brain, 
-  Sparkles, 
-  HelpCircle, 
-  Loader2, 
-  Code, 
-  FileBox, 
-  Calendar,
+import {
+  FileText,
+  X,
+  Brain,
+  Sparkles,
+  HelpCircle,
+  Loader2,
+  Code,
   Layers,
-  Terminal,
   Copy,
   RefreshCw,
-  Clock,
-  ChevronRight,
-  Info,
   Download
 } from 'lucide-react';
 import { api } from '../lib/api';
@@ -60,7 +54,7 @@ export default function FilePreviewModal({ file, isOpen, onClose }: FilePreviewM
     const handleAiAction = async (action: 'explain' | 'summarize' | 'viva') => {
         setAiLoading(true);
         setActiveAction(action);
-        
+
         try {
             const response = await api.post('/action', {
                 action,
@@ -70,8 +64,7 @@ export default function FilePreviewModal({ file, isOpen, onClose }: FilePreviewM
             });
 
             setAiResponse(response.response || "No response received.");
-            
-            // Auto-scroll to response
+
             setTimeout(() => {
                 const element = document.getElementById('ai-response-anchor');
                 element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -107,6 +100,31 @@ export default function FilePreviewModal({ file, isOpen, onClose }: FilePreviewM
         }
     };
 
+    const highlightCode = (code: string) => {
+        if (!code) return '';
+        let escaped = code
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+        // Field Journal code highlight palette — readable on dark editor surface
+        const patterns = [
+            { name: 'comment', regex: /(#.*|\/\/.*)/g, color: '#8a7f6e' },
+            { name: 'string', regex: /(&quot;.*?&quot;|&#039;.*?&#039;)/g, color: '#C99A3B' },
+            { name: 'keyword', regex: /\b(def|import|from|class|if|else|elif|try|except|finally|return|as|with|yield|await|async|for|while|in|is|not|and|or|lambda|None|True|False)\b/g, color: '#67E8F9' },
+            { name: 'function', regex: /\b([a-zA-Z_]\w*)(?=\s*\()/g, color: '#FAF6EC' }
+        ];
+
+        let highlighted = escaped;
+        patterns.forEach(p => {
+            highlighted = highlighted.replace(p.regex, (match) => `<span style="color: ${p.color}">${match}</span>`);
+        });
+
+        return highlighted;
+    };
+
     const renderPreviewContent = () => {
         const isProgram = file.language || file.file_type === 'program';
         const isRecord = file.file_type === 'application/pdf' || file.tags?.includes('record');
@@ -114,18 +132,34 @@ export default function FilePreviewModal({ file, isOpen, onClose }: FilePreviewM
 
         if (isProgram) {
             return (
-                <div className="bg-[#0b0e14] rounded-2xl border border-slate-800/50 flex flex-col w-full">
-                    <div className="bg-slate-900/50 px-5 py-3 flex items-center justify-between border-b border-slate-800">
-                        <div className="flex items-center gap-2">
-                            <Terminal size={14} className="text-electric-blue" />
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Source Code</span>
+                <div className="flex flex-col w-full animate-in fade-in zoom-in duration-500">
+                    <div className="flex items-center justify-between mb-4 px-1">
+                        <h3 className="text-xl font-display font-medium tracking-tight text-foreground">Source Code & Content</h3>
+                        <div className="flex items-center gap-4">
+                            <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">{file.language || 'code'} 3.11</span>
+                            <button onClick={() => { navigator.clipboard.writeText(file.content || ''); alert('Code copied'); }} className="text-muted-foreground hover:text-primary transition-colors">
+                                <Copy size={16} />
+                            </button>
                         </div>
-                        <span className="text-[9px] font-black text-electric-blue/70 bg-electric-blue/5 px-2 py-0.5 rounded border border-electric-blue/10 uppercase">{file.language}</span>
                     </div>
-                    <div className="p-8 text-xs font-mono text-slate-400 leading-relaxed overflow-x-auto w-full">
-                        <pre className="whitespace-pre">
-                            <code>{file.content || '// No content extracted'}</code>
-                        </pre>
+
+                    {/* Code editor surface — kept dark intentionally for editor feel */}
+                    <div className="bg-[#1A1714] rounded-xl border border-border overflow-hidden shadow-xl">
+                        <div className="bg-[#0F0F0F] h-10 px-4 flex items-center relative border-b border-[#2A2520]">
+                            <div className="flex gap-1.5 z-10">
+                                <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]/60"></span>
+                                <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]/60"></span>
+                                <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]/60"></span>
+                            </div>
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <span className="font-mono text-[10px] text-muted-foreground/60 tracking-wider">{file.name}</span>
+                            </div>
+                        </div>
+                        <div className="p-8 font-mono text-[13px] leading-relaxed overflow-x-auto selection:bg-primary/30 min-h-[400px]">
+                            <pre className="whitespace-pre">
+                                <code dangerouslySetInnerHTML={{ __html: highlightCode(file.content || '# No content extracted') }} />
+                            </pre>
+                        </div>
                     </div>
                 </div>
             );
@@ -133,7 +167,7 @@ export default function FilePreviewModal({ file, isOpen, onClose }: FilePreviewM
 
         if (isRecord) {
             return (
-                <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden h-[800px] w-full">
+                <div className="bg-surface rounded-xl border border-border overflow-hidden h-[800px] w-full">
                     <iframe src={`${file.url}#toolbar=0`} className="w-full h-full border-none" title="PDF Preview" />
                 </div>
             );
@@ -141,110 +175,112 @@ export default function FilePreviewModal({ file, isOpen, onClose }: FilePreviewM
 
         if (isScreenshot) {
             return (
-                <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center p-4 w-full">
-                    <img src={file.url} alt={file.name} className="max-w-full rounded-lg shadow-2xl" />
+                <div className="bg-surface rounded-xl border border-border overflow-hidden flex items-center justify-center p-4 w-full">
+                    <img src={file.url} alt={file.name} className="max-w-full rounded-lg shadow-md" />
                 </div>
             );
         }
 
-        return <div className="p-10 flex items-center justify-center text-slate-700 italic text-xs border border-dashed border-slate-800 rounded-2xl w-full">No preview available for this resource</div>;
+        return <div className="p-10 flex items-center justify-center text-muted-foreground italic text-xs border border-dashed border-border rounded-xl w-full">No preview available for this resource</div>;
     };
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="!max-w-[95vw] !w-[95vw] !h-[95vh] bg-[#020617] border-slate-800 p-0 overflow-hidden rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,0.8)] border-opacity-50">
+            <DialogContent className="!max-w-[95vw] !w-[95vw] !h-[95vh] app-surface border-border p-0 overflow-hidden rounded-xl shadow-2xl">
                 <div className="flex h-full w-full overflow-hidden">
-                    {/* Left Panel: Fixed sidebar with its own scroll if needed */}
-                    <aside className="w-[380px] bg-[#080b12] border-r border-slate-800/50 flex flex-col shrink-0 h-full overflow-y-auto">
+                    {/* Left Panel — paper-cream sidebar */}
+                    <aside className="w-[380px] bg-surface border-r border-border flex flex-col shrink-0 h-full overflow-y-auto">
                         <div className="p-10 space-y-12 flex flex-col min-h-full pb-20">
                             {/* Header */}
                             <div className="flex items-center gap-5">
-                                <div className="w-16 h-16 rounded-2xl bg-slate-900 flex items-center justify-center text-slate-400 border border-slate-800 shadow-xl">
+                                <div className="w-16 h-16 rounded-md bg-surface-raised flex items-center justify-center text-primary border border-border">
                                     <FileText size={32} />
                                 </div>
                                 <div className="space-y-1.5 overflow-hidden">
-                                    <h2 className="text-2xl font-black text-white leading-tight tracking-tight truncate">{file.name}</h2>
+                                    <h2 className="text-2xl font-display font-medium text-foreground leading-tight tracking-tight truncate">{file.name}</h2>
                                     {file.language && (
-                                        <span className="inline-block text-[9px] font-black bg-electric-blue/10 text-electric-blue px-2.5 py-0.5 rounded border border-electric-blue/20 uppercase tracking-[0.2em]">
+                                        <span className="inline-block font-mono text-[9px] bg-primary/10 text-primary px-2.5 py-0.5 rounded border border-primary/25 uppercase tracking-[0.18em]">
                                             {file.language}
                                         </span>
                                     )}
                                 </div>
                             </div>
 
-                            {/* Resource Details Section */}
+                            {/* Resource Details */}
                             <div className="space-y-5">
-                                <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] px-1">Resource Details</h3>
+                                <span className="eyebrow">Resource Details</span>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-[#0c1018] p-5 rounded-2xl border border-slate-800/50 space-y-1">
-                                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Created</span>
-                                        <p className="text-sm font-bold text-slate-300">{new Date(file.created_at).toLocaleDateString()}</p>
+                                    <div className="bg-surface-raised p-5 rounded-md border border-border space-y-1">
+                                        <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-widest">Created</span>
+                                        <p className="text-sm font-display font-medium text-foreground">{new Date(file.created_at).toLocaleDateString()}</p>
                                     </div>
-                                    <div className="bg-[#0c1018] p-5 rounded-2xl border border-slate-800/50 space-y-1">
-                                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Size</span>
-                                        <p className="text-sm font-bold text-slate-300">{(file.size / 1024).toFixed(1)} KB</p>
+                                    <div className="bg-surface-raised p-5 rounded-md border border-border space-y-1">
+                                        <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-widest">Size</span>
+                                        <p className="text-sm font-display font-medium text-foreground">{(file.size / 1024).toFixed(1)} KB</p>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Tags Section */}
+                            {/* Tags */}
                             <div className="space-y-5">
-                                <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] px-1">Tags</h3>
+                                <span className="eyebrow">Tags</span>
                                 <div className="flex flex-wrap gap-2.5">
                                     {file.tags?.map((tag, i) => (
-                                        <span key={i} className="text-[10px] font-bold bg-[#111622] text-slate-400 px-3 py-1.5 rounded-xl border border-slate-800">
+                                        <span key={i} className="font-mono text-[10px] bg-surface-raised text-foreground-muted px-3 py-1.5 rounded border border-border">
                                             {tag}
                                         </span>
                                     ))}
-                                    {(!file.tags || file.tags.length === 0) && <span className="text-[10px] text-slate-700 italic">No tags assigned</span>}
+                                    {(!file.tags || file.tags.length === 0) && <span className="font-mono text-[10px] text-muted-foreground/60 italic">No tags assigned</span>}
                                 </div>
                             </div>
 
-                            {/* Action Buttons: Explicitly styled and placed */}
-                            <div className="space-y-4 pt-10 mt-auto">
-                                <Button 
+                            {/* Action buttons */}
+                            <div className="space-y-3 pt-10 mt-auto">
+                                <Button
                                     onClick={() => handleAiAction('explain')}
                                     disabled={aiLoading}
-                                    className="w-full h-14 justify-start gap-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white hover:brightness-110 rounded-2xl px-6 transition-all shadow-lg border-none"
+                                    className={`w-full h-14 justify-start gap-4 rounded-md px-6 transition-all duration-300 font-medium text-sm ${activeAction === 'explain' ? 'bg-primary text-primary-foreground' : 'bg-surface-raised hover:bg-primary/8 text-foreground border border-border hover:border-primary/40'}`}
                                 >
                                     {aiLoading && activeAction === 'explain' ? <Loader2 size={20} className="animate-spin" /> : <Brain size={20} />}
-                                    <span className="text-sm font-bold tracking-tight">Explain this file</span>
+                                    Explain this file
                                 </Button>
-                                <Button 
+                                <Button
                                     onClick={() => handleAiAction('summarize')}
                                     disabled={aiLoading}
-                                    className="w-full h-14 justify-start gap-4 bg-[#0c1018] hover:bg-[#141a26] text-slate-300 hover:text-white border border-slate-800 rounded-2xl px-6 transition-all"
+                                    className={`w-full h-14 justify-start gap-4 rounded-md px-6 transition-all duration-300 font-medium text-sm ${activeAction === 'summarize' ? 'bg-primary text-primary-foreground' : 'bg-surface-raised hover:bg-primary/8 text-foreground border border-border hover:border-primary/40'}`}
                                 >
                                     {aiLoading && activeAction === 'summarize' ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
-                                    <span className="text-sm font-bold tracking-tight">Summarize</span>
+                                    Summarize
                                 </Button>
-                                <Button 
+                                <Button
                                     onClick={() => handleAiAction('viva')}
                                     disabled={aiLoading}
-                                    className="w-full h-14 justify-start gap-4 bg-[#0c1018] hover:bg-[#141a26] text-slate-300 hover:text-white border border-slate-800 rounded-2xl px-6 transition-all"
+                                    className={`w-full h-14 justify-start gap-4 rounded-md px-6 transition-all duration-300 font-medium text-sm ${activeAction === 'viva' ? 'bg-primary text-primary-foreground' : 'bg-surface-raised hover:bg-primary/8 text-foreground border border-border hover:border-primary/40'}`}
                                 >
                                     {aiLoading && activeAction === 'viva' ? <Loader2 size={20} className="animate-spin" /> : <HelpCircle size={20} />}
-                                    <span className="text-sm font-bold tracking-tight">Viva Q&A</span>
+                                    Viva Q&amp;A
                                 </Button>
                             </div>
                         </div>
                     </aside>
 
-                    {/* Right Panel: Scrollable content container */}
-                    <main className="flex-1 bg-[#04060b] flex flex-col h-full overflow-hidden">
+                    {/* Right Panel — scrollable content */}
+                    <main className="flex-1 bg-background flex flex-col h-full overflow-hidden">
                         {/* Fixed Header */}
-                        <header className="h-24 px-12 flex items-center justify-between border-b border-slate-900 shrink-0 bg-[#04060b]/90 backdrop-blur-md z-20">
+                        <header className="h-24 px-12 flex items-center justify-between border-b border-border shrink-0 app-topbar z-20">
                             <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 border border-blue-500/20">
-                                    <Layers size={22} />
+                                <div className="w-10 h-10 rounded-md bg-surface-overlay flex items-center justify-center text-primary border border-border">
+                                    <Layers size={20} />
                                 </div>
-                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.4em]">Resource Intelligence Console</h3>
+                                <div className="flex items-center gap-3">
+                                    <span className="eyebrow">Console</span>
+                                    <span className="h-3 w-px bg-border" />
+                                    <h3 className="text-sm font-display tracking-tight text-foreground">Resource Intelligence</h3>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <button onClick={onClose} className="p-3 text-slate-500 hover:text-white transition-colors bg-slate-900/50 rounded-xl border border-slate-800">
-                                    <X size={24} />
-                                </button>
-                            </div>
+                            <button onClick={onClose} className="p-2.5 text-muted-foreground hover:text-foreground transition-colors bg-surface-overlay rounded-md border border-border">
+                                <X size={20} />
+                            </button>
                         </header>
 
                         {/* Scrollable Body */}
@@ -252,15 +288,15 @@ export default function FilePreviewModal({ file, isOpen, onClose }: FilePreviewM
                             {/* Source Content */}
                             <section className="space-y-6">
                                 <div className="flex items-center justify-between px-2">
-                                    <div className="flex items-center gap-3 text-slate-500">
-                                        <Code size={16} className="text-blue-500" />
-                                        <span className="text-xs font-black uppercase tracking-[0.2em]">Source Code & Content</span>
+                                    <div className="flex items-center gap-3 text-muted-foreground">
+                                        <Code size={16} className="text-primary" />
+                                        <span className="eyebrow">Source Code &amp; Content</span>
                                     </div>
-                                    <Button 
-                                        variant="ghost" 
-                                        size="sm" 
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
                                         onClick={handleDownload}
-                                        className="text-[10px] text-slate-500 hover:text-blue-400 uppercase font-black tracking-widest"
+                                        className="font-mono text-[10px] text-muted-foreground hover:text-primary uppercase tracking-widest"
                                     >
                                         <Download size={14} className="mr-2" /> Download Original
                                     </Button>
@@ -271,21 +307,24 @@ export default function FilePreviewModal({ file, isOpen, onClose }: FilePreviewM
                             </section>
 
                             {/* Intelligence Section */}
-                            <section id="ai-response-anchor" className="pt-16 border-t border-slate-900/80 space-y-10 pb-20">
+                            <section id="ai-response-anchor" className="pt-16 border-t border-border space-y-10 pb-20">
                                 <div className="flex items-center justify-between px-2">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-xl bg-electric-blue/10 flex items-center justify-center text-electric-blue border border-electric-blue/20">
-                                            <Brain size={22} />
+                                        <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center text-primary border border-primary/25">
+                                            <Brain size={20} />
                                         </div>
-                                        <h3 className="text-xs font-black text-slate-200 uppercase tracking-[0.4em]">AI Intelligence Response</h3>
+                                        <div>
+                                            <span className="eyebrow">AI Response</span>
+                                            <h3 className="text-sm font-display tracking-tight text-foreground mt-1">Intelligence Sequence</h3>
+                                        </div>
                                     </div>
                                     {aiResponse && !aiLoading && (
-                                        <div className="flex items-center gap-3">
-                                            <button onClick={copyToClipboard} className="p-2.5 text-slate-500 hover:text-blue-400 transition-colors bg-slate-900/50 rounded-lg border border-slate-800">
-                                                <Copy size={18} />
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={copyToClipboard} className="p-2.5 text-muted-foreground hover:text-primary transition-colors bg-surface-overlay rounded-md border border-border">
+                                                <Copy size={16} />
                                             </button>
-                                            <button onClick={() => handleAiAction(activeAction as any)} className="p-2.5 text-slate-500 hover:text-blue-400 transition-colors bg-slate-900/50 rounded-lg border border-slate-800">
-                                                <RefreshCw size={18} />
+                                            <button onClick={() => handleAiAction(activeAction as any)} className="p-2.5 text-muted-foreground hover:text-primary transition-colors bg-surface-overlay rounded-md border border-border">
+                                                <RefreshCw size={16} />
                                             </button>
                                         </div>
                                     )}
@@ -293,24 +332,22 @@ export default function FilePreviewModal({ file, isOpen, onClose }: FilePreviewM
 
                                 {aiLoading ? (
                                     <div className="py-32 flex flex-col items-center justify-center gap-8">
-                                        <Loader2 size={56} className="animate-spin text-blue-500" />
-                                        <div className="text-center space-y-3">
-                                            <span className="text-xs font-black text-blue-500 uppercase tracking-[0.5em] block animate-pulse">Sequencing Neural Pathways</span>
-                                        </div>
+                                        <Loader2 size={56} className="animate-spin text-primary" />
+                                        <span className="font-mono text-xs text-primary uppercase tracking-[0.5em] block animate-pulse">Sequencing neural pathways</span>
                                     </div>
                                 ) : aiResponse ? (
                                     <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
-                                        <div className="w-full glass-panel p-12 border-blue-500/20 bg-blue-500/[0.03] rounded-[2rem]">
-                                            <div 
-                                                className="prose prose-invert prose-sm max-w-none text-slate-300 leading-[1.8] prose-headings:text-white prose-headings:font-black prose-headings:uppercase prose-strong:text-blue-400"
+                                        <div className="glass-panel p-12 border-primary/20 rounded-md">
+                                            <div
+                                                className="prose prose-sm max-w-none text-foreground leading-[1.8] prose-headings:text-foreground prose-headings:font-display prose-strong:text-primary"
                                                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(aiResponse) as any) }}
                                             />
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="py-32 flex flex-col items-center justify-center gap-8 opacity-10">
-                                        <Brain size={48} className="text-slate-700" />
-                                        <p className="text-xs font-black text-slate-600 uppercase tracking-[0.3em]">Neural Link Awaiting Input</p>
+                                    <div className="py-32 flex flex-col items-center justify-center gap-8 opacity-30">
+                                        <Brain size={48} className="text-muted-foreground/40" />
+                                        <p className="font-mono text-xs text-muted-foreground/60 uppercase tracking-[0.3em]">Neural link awaiting input</p>
                                     </div>
                                 )}
                             </section>

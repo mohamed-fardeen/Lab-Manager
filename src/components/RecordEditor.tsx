@@ -172,17 +172,17 @@ export default function RecordEditor({ data, onChange, userRrn, onRegenerate, is
     if (!data || !data.aim) {
         return (
             <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-6 animate-in">
-                <div className="w-20 h-20 rounded-3xl bg-slate-800/50 flex items-center justify-center border border-slate-700 shadow-blue-glow">
-                    <FileText size={40} className="text-slate-500" />
+                <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center border border-border shadow-accent-glow">
+                    <FileText size={40} className="text-muted-foreground" />
                 </div>
                 <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-white tracking-tight uppercase italic font-orbitron">Intelligence Void Detected</h3>
-                    <p className="text-slate-500 text-sm max-w-xs mx-auto uppercase tracking-widest font-black">No valid record data sequencing available in the current buffer.</p>
+                    <h3 className="text-xl font-bold text-foreground tracking-tight uppercase italic font-orbitron">Intelligence Void Detected</h3>
+                    <p className="text-muted-foreground text-sm max-w-xs mx-auto uppercase tracking-widest font-black">No valid record data sequencing available in the current buffer.</p>
                 </div>
                 <Button 
                     onClick={() => window.location.reload()} 
                     variant="outline" 
-                    className="border-slate-800 text-slate-400 hover:text-electric-blue hover:border-electric-blue/50 transition-all uppercase tracking-widest text-[10px] font-black"
+                    className="border-border text-muted-foreground hover:text-primary hover:border-primary/50 transition-all uppercase tracking-widest text-[10px] font-black"
                 >
                     Reset System Buffer
                 </Button>
@@ -331,33 +331,34 @@ export default function RecordEditor({ data, onChange, userRrn, onRegenerate, is
 
     // ─────────────────────────────────────────────────────────────────────────
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: '#0a0f18' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: '#000000' }}>
             {/* ── Toolbar ── */}
             <div style={{
                 height: 56, padding: '0 32px', display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between', background: 'rgba(0,0,0,0.85)',
-                borderBottom: '1px solid #1e293b', backdropFilter: 'blur(12px)', flexShrink: 0,
+                justifyContent: 'space-between', background: 'rgba(0,0,0,0.95)',
+                borderBottom: '1px solid var(--border)', backdropFilter: 'blur(12px)', flexShrink: 0,
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
                     <div>
-                        <div style={{ fontSize: 10, fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: 2 }}>
+                        <div style={{ fontSize: 10, fontWeight: 900, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: 2 }}>
                             Automated Lab Intelligence
                         </div>
                         <div style={{ fontSize: 12, fontWeight: 'bold', color: 'white', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                             {data.programName || 'New Laboratory Entry'}
                         </div>
                     </div>
-                    <div style={{ width: 1, height: 24, background: '#1e293b' }} />
+                    <div style={{ width: 1, height: 24, background: 'var(--border)' }} />
                     <Button onClick={onRegenerate} disabled={isGenerating} variant="ghost"
-                        style={{ height: 32, padding: '0 12px', fontSize: 9, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8' }}>
+                        style={{ height: 32, padding: '0 12px', fontSize: 9, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted-foreground)' }}>
                         {isGenerating ? <Loader2 size={12} style={{ marginRight: 6 }} /> : <RefreshCw size={12} style={{ marginRight: 6 }} />}
                         Re-Generate
                     </Button>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <span style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>ISO-216 A4</span>
+                    <span style={{ fontSize: 10, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>ISO-216 A4</span>
                     <Button onClick={handleDownloadPDF} disabled={isExporting || isGenerating}
-                        style={{ background: '#38bdf8', color: 'white', height: 36, padding: '0 24px', fontWeight: 'bold', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', borderRadius: 6 }}>
+                        className="bg-primary text-primary-foreground hover:bg-foreground hover:text-background shadow-accent-glow"
+                        style={{ height: 36, padding: '0 24px', fontWeight: 'bold', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', borderRadius: 6, border: 'none' }}>
                         {isExporting ? <Loader2 size={14} style={{ marginRight: 6 }} /> : <Download size={14} style={{ marginRight: 6 }} />}
                         Print / Save PDF
                     </Button>
@@ -366,7 +367,7 @@ export default function RecordEditor({ data, onChange, userRrn, onRegenerate, is
 
             {/* ── Pages scroll area ── */}
             <div ref={pagesRef} style={{
-                flex: 1, overflowY: 'auto', background: '#121212',
+                flex: 1, overflowY: 'auto', background: '#000000',
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                 padding: '48px 0', gap: 32,
             }}>
