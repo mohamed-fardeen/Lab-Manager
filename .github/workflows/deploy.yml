@@ -1,0 +1,45 @@
+name: Deploy
+
+# Triggered after the CI workflow completes successfully on main, or manually.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-render:
+    name: Trigger Render deploy hook
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+
+    steps:
+      - name: Verify deploy hook secret is configured
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_URL secret is not set. Configure it in repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - name: Trigger Render deploy
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          echo "Pinging Render deploy hook..."
+          response=$(curl -sS -o /tmp/render-response.txt -w "%{http_code}" -X POST "$HOOK" || true)
+          echo "HTTP status: $response"
+          cat /tmp/render-response.txt || true
+          if [ "$response" -lt 200 ] || [ "$response" -ge 300 ]; then
+            echo "::error::Render deploy hook returned $response"
+            exit 1
+          fi
+          echo "Render deploy hook accepted the request."

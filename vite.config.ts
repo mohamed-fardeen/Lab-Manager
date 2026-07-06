@@ -5,10 +5,12 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: process.env.VITE_BASE ?? '/',
   plugins: [
     react(),
     tailwindcss(),
   ],
+  envPrefix: ['VITE_', 'SUPABASE_'],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

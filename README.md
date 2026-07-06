@@ -1,5 +1,11 @@
 # Lab Screenshot Manager
 
+[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+[![Deploy](https://github.com/OWNER/REPO/actions/workflows/deploy.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/deploy.yml)
+[![CodeQL](https://github.com/OWNER/REPO/actions/workflows/codeql.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/codeql.yml)
+[![E2E](https://github.com/OWNER/REPO/actions/workflows/e2e.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/e2e.yml)
+[![Dependabot](https://img.shields.io/badge/dependabot-enabled-02569b?logo=dependabot)](https://github.com/OWNER/REPO/network/updates)
+
 A web-based file vault for lab sessions, allowing users to upload, organize, and retrieve screenshots and files across devices using MongoDB for persistent storage.
 
 ## Features

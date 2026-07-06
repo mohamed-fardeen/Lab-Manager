@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
-import { Download, RefreshCw, Loader2 } from 'lucide-react';
+import { Download, RefreshCw, Loader2, FileText } from 'lucide-react';
 import { Button } from './ui/button';
 
 export interface RecordData {
@@ -169,11 +169,32 @@ function AutoTA({ value, onChange, style, dataAttr }: {
 }
 
 export default function RecordEditor({ data, onChange, userRrn, onRegenerate, isGenerating }: RecordEditorProps) {
+    if (!data || !data.aim) {
+        return (
+            <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-6 animate-in">
+                <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center border border-border shadow-accent-glow">
+                    <FileText size={40} className="text-muted-foreground" />
+                </div>
+                <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-foreground tracking-tight uppercase italic font-orbitron">Intelligence Void Detected</h3>
+                    <p className="text-muted-foreground text-sm max-w-xs mx-auto uppercase tracking-widest font-black">No valid record data sequencing available in the current buffer.</p>
+                </div>
+                <Button 
+                    onClick={() => window.location.reload()} 
+                    variant="outline" 
+                    className="border-border text-muted-foreground hover:text-primary hover:border-primary/50 transition-all uppercase tracking-widest text-[10px] font-black"
+                >
+                    Reset System Buffer
+                </Button>
+            </div>
+        );
+    }
+
     const pagesRef = useRef<HTMLDivElement>(null);
     const [isExporting, setIsExporting] = useState(false);
 
     // --- Program split state ---
-    const [progPart1, setProgPart1] = useState(data.programCode);
+    const [progPart1, setProgPart1] = useState(data.programCode || '');
     const [progPart2, setProgPart2] = useState('');
     // Ref to the content div inside Page 1 (below header)
     const page1ContentRef = useRef<HTMLDivElement>(null);
@@ -182,7 +203,7 @@ export default function RecordEditor({ data, onChange, userRrn, onRegenerate, is
 
     // Reset split whenever the source data changes
     useEffect(() => {
-        setProgPart1(data.programCode);
+        setProgPart1(data.programCode || '');
         setProgPart2('');
         splitKeyRef.current = '';
     }, [data.programCode, data.aim, data.algorithm]);
@@ -208,7 +229,8 @@ export default function RecordEditor({ data, onChange, userRrn, onRegenerate, is
             const ta = contentEl.querySelector<HTMLTextAreaElement>('[data-prog-p1]');
             if (!ta || ta.scrollHeight === 0) return;
 
-            const lines = data.programCode.split('\n');
+            const safeCode = data.programCode || '';
+            const lines = safeCode.split('\n');
             // Average px per program line
             const pxPerLine = ta.scrollHeight / Math.max(lines.length, 1);
             // How many lines need to move to page 2
@@ -303,38 +325,40 @@ export default function RecordEditor({ data, onChange, userRrn, onRegenerate, is
         }
     };
 
-    const hasViva = (data.vivaQuestions?.length ?? 0) > 0;
+    const vivaArray = Array.isArray(data.vivaQuestions) ? data.vivaQuestions : [];
+    const hasViva = vivaArray.length > 0;
     const hasProgPage2 = progPart2.length > 0;
 
     // ─────────────────────────────────────────────────────────────────────────
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: '#0a0f18' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: '#000000' }}>
             {/* ── Toolbar ── */}
             <div style={{
                 height: 56, padding: '0 32px', display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between', background: 'rgba(0,0,0,0.85)',
-                borderBottom: '1px solid #1e293b', backdropFilter: 'blur(12px)', flexShrink: 0,
+                justifyContent: 'space-between', background: 'rgba(0,0,0,0.95)',
+                borderBottom: '1px solid var(--border)', backdropFilter: 'blur(12px)', flexShrink: 0,
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
                     <div>
-                        <div style={{ fontSize: 10, fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: 2 }}>
+                        <div style={{ fontSize: 10, fontWeight: 900, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: 2 }}>
                             Automated Lab Intelligence
                         </div>
                         <div style={{ fontSize: 12, fontWeight: 'bold', color: 'white', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                             {data.programName || 'New Laboratory Entry'}
                         </div>
                     </div>
-                    <div style={{ width: 1, height: 24, background: '#1e293b' }} />
+                    <div style={{ width: 1, height: 24, background: 'var(--border)' }} />
                     <Button onClick={onRegenerate} disabled={isGenerating} variant="ghost"
-                        style={{ height: 32, padding: '0 12px', fontSize: 9, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8' }}>
+                        style={{ height: 32, padding: '0 12px', fontSize: 9, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted-foreground)' }}>
                         {isGenerating ? <Loader2 size={12} style={{ marginRight: 6 }} /> : <RefreshCw size={12} style={{ marginRight: 6 }} />}
                         Re-Generate
                     </Button>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <span style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>ISO-216 A4</span>
+                    <span style={{ fontSize: 10, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>ISO-216 A4</span>
                     <Button onClick={handleDownloadPDF} disabled={isExporting || isGenerating}
-                        style={{ background: '#38bdf8', color: 'white', height: 36, padding: '0 24px', fontWeight: 'bold', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', borderRadius: 6 }}>
+                        className="bg-primary text-primary-foreground hover:bg-foreground hover:text-background shadow-accent-glow"
+                        style={{ height: 36, padding: '0 24px', fontWeight: 'bold', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', borderRadius: 6, border: 'none' }}>
                         {isExporting ? <Loader2 size={14} style={{ marginRight: 6 }} /> : <Download size={14} style={{ marginRight: 6 }} />}
                         Print / Save PDF
                     </Button>
@@ -343,7 +367,7 @@ export default function RecordEditor({ data, onChange, userRrn, onRegenerate, is
 
             {/* ── Pages scroll area ── */}
             <div ref={pagesRef} style={{
-                flex: 1, overflowY: 'auto', background: '#121212',
+                flex: 1, overflowY: 'auto', background: '#000000',
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                 padding: '48px 0', gap: 32,
             }}>
@@ -461,15 +485,15 @@ export default function RecordEditor({ data, onChange, userRrn, onRegenerate, is
                             <div style={{ ...SECTION_LABEL, textAlign: 'center', fontSize: 16, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
                                 Viva Questions
                             </div>
-                            {data.vivaQuestions!.map((vq, i) => (
+                            {vivaArray.map((vq, i) => (
                                 <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
                                     {/* Question row */}
                                     <div style={{ display: 'flex', gap: 6 }}>
                                         <span style={{ fontWeight: 'bold', fontSize: 13, color: 'black', fontFamily: "'Times New Roman', Times, serif", whiteSpace: 'nowrap', flexShrink: 0 }}>Q{i + 1}.</span>
                                         <AutoTA
-                                            value={vq.question}
+                                            value={vq.question || ''}
                                             onChange={v => {
-                                                const nq = [...data.vivaQuestions!];
+                                                const nq = [...vivaArray];
                                                 nq[i] = { ...nq[i], question: v };
                                                 onChange('vivaQuestions' as any, nq as any);
                                             }}
@@ -479,9 +503,9 @@ export default function RecordEditor({ data, onChange, userRrn, onRegenerate, is
                                     {/* Answer row — no prefix, just indented text */}
                                     <div style={{ paddingLeft: '22px' }}>
                                         <AutoTA
-                                            value={vq.answer}
+                                            value={vq.answer || ''}
                                             onChange={v => {
-                                                const nq = [...data.vivaQuestions!];
+                                                const nq = [...vivaArray];
                                                 nq[i] = { ...nq[i], answer: v };
                                                 onChange('vivaQuestions' as any, nq as any);
                                             }}

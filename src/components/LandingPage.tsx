@@ -1,7 +1,7 @@
 import React, { useRef, Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Database, Cpu, Monitor, Server, Terminal, ShieldCheck, Activity, Network } from 'lucide-react';
-import ThreeCanvas from './ThreeCanvas';
+import { FolderOpen, Share2, Terminal, Bot, History, ChevronRight, Code2, Cpu, Sparkles, GitBranch, Clock, Search, FileCode2 } from 'lucide-react';
+import BackgroundAnimation from './background/BackgroundAnimation';
 
 interface LandingPageProps {
     onLoginClick: () => void;
@@ -21,187 +21,247 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
         show: {
             opacity: 1,
             transition: {
-                staggerChildren: 0.1,
+                staggerChildren: 0.12,
                 delayChildren: 0.2
             }
         }
     };
 
     const itemVariants = {
-        hidden: { opacity: 0, y: 30, scale: 1 },
+        hidden: { opacity: 0, y: 24 },
         show: {
             opacity: 1,
             y: 0,
-            scale: 1,
-            transition: { duration: 0.6 }
+            transition: { duration: 0.9, ease: [0.16, 1, 0.3, 1] as any }
         }
     };
 
     return (
         <div
             onMouseMove={handleMouseMove}
-            className="relative min-h-screen w-full bg-[#020617] text-slate-100 overflow-x-hidden font-sans selection:bg-electric-blue/30"
+            className="relative min-h-screen w-full app-bg overflow-x-hidden font-sans selection:bg-primary/25"
         >
-            <Suspense fallback={<div className="fixed inset-0 bg-[#020617]" />}>
-                <ThreeCanvas />
+            <Suspense fallback={<div className="fixed inset-0 app-bg" />}>
+                <BackgroundAnimation />
             </Suspense>
 
-            <div className="fixed inset-0 z-[1] pointer-events-none opacity-[0.05] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+            {/* Faint paper noise overlay for editorial texture */}
+            <div className="fixed inset-0 z-[1] pointer-events-none opacity-[0.025] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
-            {/* Sticky/Fixed Navigation */}
-            <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-6 md:px-12 py-4 md:py-8 max-w-7xl mx-auto backdrop-blur-md bg-[#020617]/20">
+            {/* ── NAV ── */}
+            <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-6 md:px-12 py-6 max-w-7xl mx-auto">
                 <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="flex items-center gap-4"
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] as any }}
+                    className="flex items-center gap-3"
                 >
-                    <div className="w-10 h-10 rounded-xl bg-electric-blue/20 border border-electric-blue/40 flex items-center justify-center shadow-[0_0_20px_rgba(59,130,246,0.2)]">
-                        <Terminal size={20} className="text-electric-blue" />
+                    <div className="w-8 h-8 rounded-md border border-border bg-surface flex items-center justify-center">
+                        <Terminal size={14} className="text-foreground" />
                     </div>
-                    <span className="text-lg md:text-xl font-black tracking-widest font-orbitron bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-500">TERMINAL_SYNC</span>
+                    <div className="flex flex-col leading-tight">
+                        <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-rule">Lab Workstation</span>
+                        <span className="text-sm font-display font-semibold tracking-tight text-foreground">Lab-Sync</span>
+                    </div>
                 </motion.div>
 
-                <div className="hidden lg:flex items-center gap-16">
-                    {['Mainframe', 'Inventory', 'Protocol', 'Analytics'].map((link, i) => (
-                        <motion.a
-                            key={link}
-                            href="#"
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.05 * i }}
-                            className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 hover:text-white transition-all relative group"
-                        >
-                            {link}
-                            <span className="absolute -bottom-2 left-0 w-0 h-[1px] bg-electric-blue transition-all group-hover:w-full" />
-                        </motion.a>
-                    ))}
-                </div>
-
                 <motion.button
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] as any }}
                     onClick={onLoginClick}
-                    className="px-6 md:px-8 py-2.5 md:py-3 rounded-xl bg-electric-blue text-white font-black text-[8px] md:text-[9px] tracking-[0.2em] md:tracking-[0.3em] uppercase shadow-lg hover:shadow-blue-glow transition-all whitespace-nowrap"
+                    className="group flex items-center gap-2 px-6 py-2.5 bg-foreground text-background font-medium text-xs tracking-wide hover:bg-primary hover:text-primary-foreground transition-all duration-400 border border-foreground hover:border-primary"
                 >
-                    System Entry
+                    Sign in
+                    <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform duration-300" />
                 </motion.button>
             </nav>
 
-            <main className="relative z-10 w-full">
-                {/* Hero Section: Properly Centered and Visible */}
-                <section className="min-h-screen flex flex-col items-center justify-center text-center px-12">
+            <main className="relative z-10 w-full pt-32">
+                {/* ── HERO ── */}
+                <section className="min-h-[80vh] flex flex-col justify-center px-6 md:px-12 max-w-7xl mx-auto">
                     <motion.div
                         variants={containerVariants}
                         initial="hidden"
                         animate="show"
-                        className="max-w-4xl"
+                        className="max-w-3xl"
                     >
-                        <motion.div variants={itemVariants} className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-electric-blue/5 border border-electric-blue/30 text-electric-blue text-[10px] font-black uppercase tracking-[0.4em] mb-12 backdrop-blur-3xl">
-                            <div className="w-1.5 h-1.5 rounded-full bg-electric-blue animate-pulse" />
-                            Command Protocol Active // Node_04
+                        <motion.div variants={itemVariants}>
+                            <span className="eyebrow">Cloud · For Engineering Labs</span>
                         </motion.div>
 
                         <motion.h1
                             variants={itemVariants}
-                            className="text-5xl sm:text-7xl md:text-[10rem] font-black tracking-tighter leading-[0.85] mb-10 md:mb-14 font-orbitron text-white"
+                            className="mt-8 text-6xl md:text-[9rem] font-display font-medium tracking-[-0.035em] leading-[0.88] mb-10 text-foreground"
                         >
-                            <span className="block opacity-40">CONTROL</span>
-                            <span className="block italic text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-500 pb-2">THE LAB.</span>
+                            Every lab<br />
+                            <em className="not-italic font-display italic font-normal text-primary">program</em><br />
+                            <span className="text-muted-foreground/60">in one place.</span>
                         </motion.h1>
 
-                        <motion.p variants={itemVariants} className="text-xl md:text-2xl text-slate-400 max-w-2xl font-light leading-relaxed mb-16 mx-auto">
-                            The unified OS for advanced computer laboratories.
-                            Synchronize hardware nodes and monitor real-time throughput.
+                        <motion.div variants={itemVariants} className="ink-rule mb-10" />
+
+                        <motion.p variants={itemVariants} className="text-lg md:text-xl text-foreground-muted leading-relaxed mb-12 max-w-xl font-light">
+                            Save code from every lab session, generate the record PDF automatically, and share with classmates — built for engineering students who don't want to lose their work to a crashed laptop.
                         </motion.p>
 
-                        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-6 md:gap-8 justify-center items-center">
+                        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4 items-start">
                             <button
                                 onClick={onLoginClick}
-                                className="group relative w-full sm:w-auto px-10 md:px-14 py-4 md:py-6 bg-electric-blue text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] overflow-hidden shadow-[0_0_50px_rgba(59,130,246,0.3)] transition-all hover:scale-105 active:scale-95"
+                                className="group inline-flex items-center gap-3 px-8 py-4 bg-primary text-primary-foreground font-medium tracking-wide hover:bg-foreground hover:text-background transition-all duration-400 border border-primary hover:border-foreground"
                             >
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
-                                <span className="relative flex items-center justify-center gap-4">
-                                    Establish Link <Zap size={18} />
-                                </span>
+                                <Terminal size={16} />
+                                <span className="text-sm">Open the workspace</span>
+                                <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform duration-300" />
                             </button>
-                            <button className="w-full sm:w-auto px-10 md:px-14 py-4 md:py-6 bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-                                Resource Map
-                            </button>
+                            <a
+                                href="#features"
+                                className="inline-flex items-center gap-3 px-6 py-4 text-foreground-muted font-medium tracking-wide hover:text-foreground transition-colors text-sm"
+                            >
+                                <span>See how it works</span>
+                                <span className="font-mono text-xs">↓</span>
+                            </a>
+                        </motion.div>
+
+                        {/* Inline stack strip — honest about what runs underneath */}
+                        <motion.div
+                            variants={itemVariants}
+                            className="mt-16 flex flex-wrap items-center gap-x-3 gap-y-2 text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground"
+                        >
+                            <span className="text-rule">Stack</span>
+                            <span className="text-foreground/80">React</span>
+                            <span className="text-muted-foreground/40">·</span>
+                            <span className="text-foreground/80">Supabase</span>
+                            <span className="text-muted-foreground/40">·</span>
+                            <span className="text-foreground/80">Groq LLMs</span>
+                            <span className="text-muted-foreground/40">·</span>
+                            <span className="text-foreground/80">.py .c .java .js</span>
                         </motion.div>
                     </motion.div>
                 </section>
 
-                {/* Features Section */}
-                <section className="max-w-7xl mx-auto px-6 md:px-12 py-16 md:py-32">
-                    <motion.div
-                        initial={{ opacity: 0, y: 50 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        className="grid grid-cols-1 md:grid-cols-3 gap-12"
-                    >
-                        {[
-                            { title: 'Core Ops', desc: 'Centralized CPU and memory orchestration.', icon: Cpu, color: 'text-blue-400' },
-                            { title: 'Fleet Sync', desc: 'Synchronized terminal deployment.', icon: Monitor, color: 'text-cyan-400' },
-                            { title: 'Data Vault', desc: 'Security protocol archival.', icon: Database, color: 'text-white' },
-                        ].map((feature, i) => (
-                            <motion.div
-                                key={i}
-                                whileHover={{ y: -10 }}
-                                className="p-8 md:p-12 rounded-3xl bg-slate-900/10 border border-slate-800/50 hover:border-electric-blue/40 transition-all duration-500 text-left backdrop-blur-sm"
-                            >
-                                <div className={`w-14 h-14 rounded-2xl bg-slate-950 flex items-center justify-center mb-8 border border-white/5 ${feature.color}`}>
-                                    <feature.icon size={28} />
+                {/* ── FEATURES ── */}
+                <section id="features" className="relative max-w-7xl mx-auto px-6 md:px-12 py-24">
+                    <div className="absolute inset-0 bg-grid-paper-fine opacity-60 pointer-events-none" />
+                    <div className="relative">
+                        <motion.div
+                            initial={{ opacity: 0, y: 32 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, margin: "-100px" }}
+                            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] as any }}
+                        >
+                            <div className="flex items-end justify-between mb-16">
+                                <div>
+                                    <span className="eyebrow">What it does</span>
+                                    <h2 className="mt-4 text-4xl md:text-6xl font-display font-medium tracking-tight text-foreground max-w-2xl">
+                                        Four jobs. One workspace.
+                                    </h2>
                                 </div>
-                                <h3 className="text-xl font-bold font-orbitron mb-4 tracking-widest uppercase">{feature.title}</h3>
-                                <p className="text-slate-500 text-sm leading-relaxed">{feature.desc}</p>
-                            </motion.div>
-                        ))}
-                    </motion.div>
-                </section>
-
-                {/* Architecture Section */}
-                <section className="px-6 md:px-12 py-24 md:py-48 bg-slate-950/20 backdrop-blur-3xl border-y border-white/5">
-                    <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-20 md:gap-32 items-center">
-                        <div className="space-y-12">
-                            <div className="space-y-4">
-                                <span className="text-electric-blue font-black uppercase tracking-[0.6em] text-[10px]">Infrastructure</span>
-                                <h2 className="text-6xl font-black font-orbitron uppercase text-white leading-tight">Digital<br />Mainframe</h2>
+                                <span className="font-mono text-xs text-muted-foreground hidden md:block">№ 01 — 04</span>
                             </div>
-                            <div className="space-y-10">
+
+                            <div className="ink-rule mb-12" />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 {[
-                                    { title: 'Network Topology', text: 'Visualized signal strength monitoring.', icon: Network },
-                                    { title: 'Security Protocol', text: 'Hardware-level authentication.', icon: ShieldCheck },
-                                    { title: 'Uptime Metrics', text: 'Real-time telemetry reports.', icon: Activity }
-                                ].map((item, i) => (
-                                    <div key={i} className="flex gap-4 md:gap-8 group">
-                                        <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center shrink-0 border border-white/5 group-hover:border-electric-blue/40 transition-all">
-                                            <item.icon size={20} className="text-slate-500 group-hover:text-electric-blue" />
-                                        </div>
-                                        <div>
-                                            <h4 className="text-lg font-bold text-white uppercase tracking-widest">{item.title}</h4>
-                                            <p className="text-slate-500 text-sm">{item.text}</p>
+                                    {
+                                        title: 'Program Vault',
+                                        catalogue: '№ 01',
+                                        desc: 'Store every lab program in a folder tree by subject and experiment. Python, C, Java, JS — all searchable across every file you have ever written.',
+                                        icon: FolderOpen
+                                    },
+                                    {
+                                        title: 'Record Generator',
+                                        catalogue: '№ 02',
+                                        desc: 'Paste your program, get the lab record PDF — aim, algorithm, code, output, viva questions. Skip the 3 AM formatting session before submission.',
+                                        icon: FileCode2
+                                    },
+                                    {
+                                        title: 'Peer Sharing',
+                                        catalogue: '№ 03',
+                                        desc: 'Share programs with classmates in one click. Built-in messaging so you can ask "why does this segfault" without leaving the workspace.',
+                                        icon: Share2
+                                    },
+                                    {
+                                        title: 'Revision Trail',
+                                        catalogue: '№ 04',
+                                        desc: 'Every upload, edit, and share is timestamped. Find the version you submitted last Friday, not the one you overwrote this morning.',
+                                        icon: GitBranch
+                                    }
+                                ].map((feature) => (
+                                    <div key={feature.title} className="specimen-card group">
+                                        <div className="flex items-start gap-5">
+                                            <div className="shrink-0 w-12 h-12 flex items-center justify-center border border-border bg-surface-raised group-hover:border-primary/40 transition-colors duration-500">
+                                                <feature.icon size={20} className="text-foreground-muted group-hover:text-primary transition-colors duration-500" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-baseline justify-between gap-4 mb-3">
+                                                    <h3 className="text-xl font-display font-medium text-foreground">{feature.title}</h3>
+                                                    <span className="font-mono text-[10px] uppercase tracking-widest text-rule shrink-0">{feature.catalogue}</span>
+                                                </div>
+                                                <p className="text-foreground-muted leading-relaxed text-sm">{feature.desc}</p>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                        </div>
-                        <div className="relative aspect-square glass-panel rounded-[2rem] md:rounded-[3rem] flex items-center justify-center p-10 md:p-20 border-white/10">
-                            <motion.div animate={{ y: [0, -20, 0] }} transition={{ duration: 4, repeat: Infinity }}>
-                                <Server size={140} className="md:size-[220px] text-electric-blue opacity-80" strokeWidth={0.5} />
-                            </motion.div>
-                        </div>
+                        </motion.div>
                     </div>
                 </section>
 
-                <footer className="px-12 py-24 text-center border-t border-white/5 bg-black/40">
-                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
-                        <div className="flex items-center gap-4">
-                            <Terminal size={20} className="text-slate-500" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Protocol v1.0.4</span>
+                {/* ── WORKFLOW STRIP ── */}
+                <section className="max-w-7xl mx-auto px-6 md:px-12 py-24">
+                    <div className="ink-rule-thick mb-16" />
+                    <motion.div
+                        initial={{ opacity: 0, y: 24 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] as any }}
+                    >
+                        <div className="flex items-end justify-between mb-12">
+                            <div>
+                                <span className="eyebrow">Workflow</span>
+                                <h2 className="mt-3 text-3xl md:text-4xl font-display font-medium tracking-tight text-foreground">
+                                    From editor to submission.
+                                </h2>
+                            </div>
+                            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground hidden md:block">№ W01 — W03</span>
                         </div>
-                        <p className="text-[9px] font-mono text-slate-600 uppercase tracking-widest">© 2026 Virtual Lab Environments</p>
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 24 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] as any }}
+                        className="grid grid-cols-1 md:grid-cols-3 gap-12"
+                    >
+                        {[
+                            { icon: Code2, label: 'Write', note: 'Save Python, C, Java, JS programs as you finish each lab. Versioned automatically.' },
+                            { icon: Cpu, label: 'Generate', note: 'Turn any program into a record PDF — aim, algorithm, code, output, viva — in one click.' },
+                            { icon: Share2, label: 'Share', note: 'Send programs to classmates or staff. Keep the conversation in the same workspace.' }
+                        ].map((step, i) => (
+                            <div key={step.label} className="relative pl-6 border-l border-border">
+                                <span className="absolute -left-[5px] top-0 w-2 h-2 bg-rule rounded-full" />
+                                <div className="flex items-center gap-3 mb-3">
+                                    <step.icon size={16} className="text-primary" />
+                                    <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{`0${i + 1}`}</span>
+                                </div>
+                                <h3 className="font-display text-2xl font-medium mb-2">{step.label}</h3>
+                                <p className="text-sm text-foreground-muted leading-relaxed">{step.note}</p>
+                            </div>
+                        ))}
+                    </motion.div>
+                </section>
+
+                {/* ── FOOTER ── */}
+                <footer className="px-6 md:px-12 py-12 mt-12">
+                    <div className="ink-rule mb-10" />
+                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="flex items-center gap-3">
+                            <Terminal size={14} className="text-muted-foreground/60" />
+                            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/60">Lab-Sync · v2.4</span>
+                        </div>
+                        <p className="font-mono text-[10px] text-muted-foreground/60 uppercase tracking-widest">© 2026 — Built for students who lose their USB drives.</p>
                     </div>
                 </footer>
             </main>
